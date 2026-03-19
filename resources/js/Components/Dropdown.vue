@@ -6,6 +6,10 @@ const props = defineProps({
         type: String,
         default: 'right',
     },
+    direction: {
+        type: String,
+        default: 'down',
+    },
     width: {
         type: String,
         default: '48',
@@ -28,16 +32,23 @@ onUnmounted(() => document.removeEventListener('keydown', closeOnEscape));
 const widthClass = computed(() => {
     return {
         48: 'w-48',
+        64: 'w-64',
     }[props.width.toString()];
 });
 
 const alignmentClasses = computed(() => {
     if (props.align === 'left') {
-        return 'ltr:origin-top-left rtl:origin-top-right start-0';
+        return props.direction === 'up'
+            ? 'ltr:origin-bottom-left rtl:origin-bottom-right start-0 bottom-full mb-2'
+            : 'ltr:origin-top-left rtl:origin-top-right start-0';
     } else if (props.align === 'right') {
-        return 'ltr:origin-top-right rtl:origin-top-left end-0';
+        return props.direction === 'up'
+            ? 'ltr:origin-bottom-right rtl:origin-bottom-left end-0 bottom-full mb-2'
+            : 'ltr:origin-top-right rtl:origin-top-left end-0';
     } else {
-        return 'origin-top';
+        return props.direction === 'up'
+            ? 'origin-bottom bottom-full mb-2'
+            : 'origin-top';
     }
 });
 
@@ -67,8 +78,7 @@ const open = ref(false);
         >
             <div
                 v-show="open"
-                class="absolute z-50 mt-2 rounded-md shadow-lg"
-                :class="[widthClass, alignmentClasses]"
+                :class="['absolute z-50 rounded-md shadow-lg', props.direction === 'down' ? 'mt-2' : '', widthClass, alignmentClasses]"
                 style="display: none"
                 @click="open = false"
             >
