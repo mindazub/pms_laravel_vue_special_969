@@ -90,6 +90,16 @@ const weekDays = computed(() =>
   })
 );
 
+const weekNumber = computed(() => {
+  // ISO week number using local time to avoid timezone offset shifting the date
+  const date = new Date(displayedWeekStart.value);
+  date.setHours(0, 0, 0, 0);
+  // Move to Thursday of this week (ISO week definition anchor)
+  date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+});
+
 const weekRangeLabel = computed(() => {
   const weekStart = displayedWeekStart.value;
   const weekEnd = addDays(weekStart, 6);
@@ -789,7 +799,7 @@ const deleteProject = (projectId) => {
             </button>
 
             <div class="text-center">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week View</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week {{ weekNumber }} &mdash; Week View</p>
               <p class="text-base font-semibold text-gray-900">{{ weekRangeLabel }}</p>
             </div>
 

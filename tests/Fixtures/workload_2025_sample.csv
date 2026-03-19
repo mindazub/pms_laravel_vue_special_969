@@ -1,0 +1,4 @@
+Owner,Week,Task,Category (Planned/Ad hoc),Linked Goal,Priority (H/M/L),Estimated Time (h),Status (Not started/In progress/Done/Blocked),% Complete,Comments / Blockers,Moved to Next Week (Y/N),Replaced Task (if ad hoc),Date Added
+Jonas,W47,Prepare proposal,Planned,Innovation,H,4,Done,100%,,N,,2025-11-14
+Saulė,W48,Blocked task,Ad hoc,Client Delivery,M,3,Blocked,25%,Waiting for client,Y,,2025-11-24
+Matas,W48,In progress app work,Planned,EMS,SH,5,In Progress,60%,Need API,Y,,11/27/2025

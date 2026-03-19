@@ -13,16 +13,50 @@ const navigationPosition = ref('top');
 
 const navigationLinks = computed(() => [
     {
+        year: '2026',
         label: 'Dashboard',
         href: route('dashboard'),
         active: route().current('dashboard'),
     },
     {
+        year: '2025',
+        label: 'Dashboard 2025',
+        href: route('dashboard.2025'),
+        active: route().current('dashboard.2025'),
+    },
+    {
+        year: '2026',
         label: 'Projects',
         href: route('projects.index'),
         active: route().current('projects.index'),
     },
+    {
+        year: '2025',
+        label: 'Projects 2025',
+        href: route('projects.2025'),
+        active: route().current('projects.2025'),
+    },
 ]);
+
+const navigationSections = computed(() => {
+    const groupedLinks = navigationLinks.value.reduce((sections, link) => {
+        const existingSection = sections.find((section) => section.year === link.year);
+
+        if (existingSection) {
+            existingSection.links.push(link);
+            return sections;
+        }
+
+        sections.push({
+            year: link.year,
+            links: [link],
+        });
+
+        return sections;
+    }, []);
+
+    return groupedLinks.sort((left, right) => right.year.localeCompare(left.year));
+});
 
 const isLeftNavigation = computed(() => navigationPosition.value === 'left');
 
@@ -60,15 +94,20 @@ onMounted(() => {
                 </div>
 
                 <div class="flex-1 px-4 py-6">
-                    <nav class="space-y-1">
-                        <Link
-                            v-for="link in navigationLinks"
-                            :key="`sidebar-${link.label}`"
-                            :href="link.href"
-                            :class="sidebarLinkClasses(link.active)"
-                        >
-                            {{ link.label }}
-                        </Link>
+                    <nav class="space-y-6">
+                        <div v-for="section in navigationSections" :key="`sidebar-section-${section.year}`">
+                            <p class="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
+                            <div class="space-y-1">
+                                <Link
+                                    v-for="link in section.links"
+                                    :key="`sidebar-${link.label}`"
+                                    :href="link.href"
+                                    :class="sidebarLinkClasses(link.active)"
+                                >
+                                    {{ link.label }}
+                                </Link>
+                            </div>
+                        </div>
                     </nav>
                 </div>
 
@@ -146,17 +185,20 @@ onMounted(() => {
 
                             <!-- Navigation Links -->
                             <div
-                                class="hidden space-x-1 sm:ms-10 sm:flex sm:items-center"
+                                class="hidden gap-6 sm:ms-10 sm:flex sm:items-center"
                                 v-if="!isLeftNavigation"
                             >
-                                <NavLink
-                                    v-for="link in navigationLinks"
-                                    :key="`top-${link.label}`"
-                                    :href="link.href"
-                                    :active="link.active"
-                                >
-                                    {{ link.label }}
-                                </NavLink>
+                                <div v-for="section in navigationSections" :key="`top-section-${section.year}`" class="flex items-center gap-1">
+                                    <span class="mr-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</span>
+                                    <NavLink
+                                        v-for="link in section.links"
+                                        :key="`top-${link.label}`"
+                                        :href="link.href"
+                                        :active="link.active"
+                                    >
+                                        {{ link.label }}
+                                    </NavLink>
+                                </div>
                             </div>
                         </div>
 
@@ -283,15 +325,18 @@ onMounted(() => {
                     }"
                     class="sm:hidden"
                 >
-                    <div class="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            v-for="link in navigationLinks"
-                            :key="`mobile-${link.label}`"
-                            :href="link.href"
-                            :active="link.active"
-                        >
-                            {{ link.label }}
-                        </ResponsiveNavLink>
+                    <div class="space-y-4 pb-3 pt-2">
+                        <div v-for="section in navigationSections" :key="`mobile-section-${section.year}`">
+                            <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
+                            <ResponsiveNavLink
+                                v-for="link in section.links"
+                                :key="`mobile-${link.label}`"
+                                :href="link.href"
+                                :active="link.active"
+                            >
+                                {{ link.label }}
+                            </ResponsiveNavLink>
+                        </div>
                     </div>
 
                     <!-- Responsive Settings Options -->
