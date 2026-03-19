@@ -23,6 +23,7 @@ class Note extends Model
         'project_id',
         'title',
         'content',
+        'clipboard_text',
         'status',
         'progress',
         'attachments',

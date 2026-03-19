@@ -1,12 +1,13 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import EdisLogo from '@/Components/EdisLogo.vue';
 </script>
 
 <template>
-    <div class="flex min-h-screen flex-col items-center bg-gradient-to-br from-brand-900 to-brand-700 pt-6 sm:justify-center sm:pt-0">
+    <div class="flex min-h-screen flex-col items-center bg-gradient-to-br from-slate-900 to-slate-700 pt-6 sm:justify-center sm:pt-0">
         <div class="mb-2">
-            <Link href="/">
-                <img src="/brand/logo-white.svg" alt="EDIS Lab" class="h-12" />
+            <Link href="/" class="inline-flex items-center">
+                <EdisLogo variant="white" height="40" />
             </Link>
         </div>
 

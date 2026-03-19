@@ -38,6 +38,7 @@ class ProjectController extends Controller
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
+                'clipboard_text' => $project->clipboard_text,
                 'attachments' => $project->attachments ?? [],
                 'notes_count' => $totalNotes,
                 'done_notes_count' => $doneNotes,
@@ -73,6 +74,7 @@ class ProjectController extends Controller
                     'id' => $project->id,
                     'name' => $project->name,
                     'description' => $project->description,
+                    'clipboard_text' => $project->clipboard_text,
                     'attachments' => $project->attachments ?? [],
                     'notes_count' => $totalNotes,
                     'done_notes_count' => $doneNotes,
@@ -87,6 +89,7 @@ class ProjectController extends Controller
                         'id' => $note->id,
                         'title' => $note->title,
                         'content' => $note->content,
+                        'clipboard_text' => $note->clipboard_text,
                         'attachments' => $note->attachments ?? [],
                         'status' => $note->status,
                         'progress' => (int) $note->progress,
@@ -118,6 +121,7 @@ class ProjectController extends Controller
                 ),
             ],
             'description' => ['nullable', 'string'],
+            'clipboard_text' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'max:10240'],
         ]);
@@ -125,6 +129,7 @@ class ProjectController extends Controller
         $project = $request->user()->projects()->create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'clipboard_text' => $validated['clipboard_text'] ?? null,
             'attachments' => [],
         ]);
 
@@ -156,6 +161,7 @@ class ProjectController extends Controller
                     ->ignore($ownedProject->id),
             ],
             'description' => ['nullable', 'string'],
+            'clipboard_text' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'max:10240'],
             'selected_project_id' => ['nullable', 'integer'],
@@ -173,6 +179,7 @@ class ProjectController extends Controller
         $ownedProject->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'clipboard_text' => $validated['clipboard_text'] ?? null,
             'attachments' => $attachments,
         ]);
 

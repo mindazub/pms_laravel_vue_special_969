@@ -47,6 +47,7 @@ class NoteController extends Controller
             ],
             'title' => 'required|string|max:255',
             'content' => 'nullable|string',
+            'clipboard_text' => 'nullable|string',
             'status' => ['nullable', Rule::in(Note::STATUSES)],
             'progress' => ['nullable', Rule::in(self::PROGRESS_STEPS)],
             'attachments' => ['nullable', 'array'],
@@ -67,6 +68,7 @@ class NoteController extends Controller
             'project_id' => $validated['project_id'],
             'title' => $validated['title'],
             'content' => $validated['content'] ?? '',
+            'clipboard_text' => $validated['clipboard_text'] ?? null,
             'status' => $validated['status'],
             'progress' => $validated['progress'],
             'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
@@ -100,6 +102,7 @@ class NoteController extends Controller
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'content' => 'sometimes|nullable|string',
+            'clipboard_text' => 'sometimes|nullable|string',
             'status' => ['sometimes', Rule::in(Note::STATUSES)],
             'progress' => ['sometimes', Rule::in(self::PROGRESS_STEPS)],
             'attachments' => ['sometimes', 'array'],

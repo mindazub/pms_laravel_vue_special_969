@@ -12,6 +12,7 @@ class Project extends Model
     protected $fillable = [
         'name',
         'description',
+        'clipboard_text',
         'attachments',
         'user_id',
     ];
