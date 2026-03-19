@@ -189,6 +189,8 @@ const draggingNoteId = ref(null);
 const dragOverStatus = ref(null);
 const isCreateTaskDropActive = ref(false);
 const createTaskFileInput = ref(null);
+const isCreateProjectDropActive = ref(false);
+const createProjectFileInput = ref(null);
 const isEditTaskDropActive = ref(false);
 const editTaskFileInput = ref(null);
 const previewImageUrl = ref(null);
@@ -404,12 +406,16 @@ const moveDraggedNoteTo = (status) => {
 };
 
 const openCreateProjectModal = () => {
+  cleanupCreateProjectAttachmentPreviews();
+  isCreateProjectDropActive.value = false;
   createProjectForm.clearErrors();
   createProjectForm.reset();
   isCreateProjectModalOpen.value = true;
 };
 
 const closeCreateProjectModal = () => {
+  cleanupCreateProjectAttachmentPreviews();
+  isCreateProjectDropActive.value = false;
   isCreateProjectModalOpen.value = false;
   createProjectForm.clearErrors();
   createProjectForm.reset();
@@ -481,6 +487,18 @@ const withEditTaskPreview = (file) => {
   return file;
 };
 
+const withCreateProjectPreview = (file) => {
+  if (!isImageFile(file)) {
+    return file;
+  }
+
+  if (!file.__previewUrl) {
+    file.__previewUrl = URL.createObjectURL(file);
+  }
+
+  return file;
+};
+
 const appendCreateTaskAttachments = (files) => {
   if (!files?.length) {
     return;
@@ -494,6 +512,26 @@ const appendCreateTaskAttachments = (files) => {
 
 const cleanupCreateTaskAttachmentPreviews = () => {
   createForm.attachments.forEach((file) => {
+    if (file?.__previewUrl) {
+      URL.revokeObjectURL(file.__previewUrl);
+      delete file.__previewUrl;
+    }
+  });
+};
+
+const appendCreateProjectAttachments = (files) => {
+  if (!files?.length) {
+    return;
+  }
+
+  createProjectForm.attachments = [
+    ...createProjectForm.attachments,
+    ...files.map(withCreateProjectPreview),
+  ];
+};
+
+const cleanupCreateProjectAttachmentPreviews = () => {
+  createProjectForm.attachments.forEach((file) => {
     if (file?.__previewUrl) {
       URL.revokeObjectURL(file.__previewUrl);
       delete file.__previewUrl;
@@ -652,7 +690,61 @@ const removeEditTaskAttachment = (index) => {
 };
 
 const onCreateProjectAttachmentsSelected = (event) => {
-  createProjectForm.attachments = Array.from(event.target.files ?? []);
+  const files = Array.from(event.target.files ?? []);
+  if (files.length === 0) {
+    return;
+  }
+
+  appendCreateProjectAttachments(files);
+  event.target.value = '';
+};
+
+const openCreateProjectFilePicker = () => {
+  createProjectFileInput.value?.click();
+};
+
+const onCreateProjectDrop = (event) => {
+  event.preventDefault();
+  isCreateProjectDropActive.value = false;
+
+  const files = Array.from(event.dataTransfer?.files ?? []);
+  if (files.length === 0) {
+    return;
+  }
+
+  appendCreateProjectAttachments(files);
+};
+
+const onCreateProjectPaste = (event) => {
+  const items = Array.from(event.clipboardData?.items ?? []);
+
+  const pastedFiles = items
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+
+  if (pastedFiles.length > 0) {
+    event.preventDefault();
+    appendCreateProjectAttachments(pastedFiles);
+    return;
+  }
+
+  const pastedText = event.clipboardData?.getData('text/plain') ?? '';
+  if (pastedText) {
+    event.preventDefault();
+    createProjectForm.clipboard_text = createProjectForm.clipboard_text
+      ? `${createProjectForm.clipboard_text}\n${pastedText}`
+      : pastedText;
+  }
+};
+
+const removeCreateProjectAttachment = (index) => {
+  const file = createProjectForm.attachments[index];
+  if (file?.__previewUrl) {
+    URL.revokeObjectURL(file.__previewUrl);
+  }
+
+  createProjectForm.attachments = createProjectForm.attachments.filter((_, i) => i !== index);
 };
 
 const onEditProjectAttachmentsSelected = (event) => {
@@ -1211,35 +1303,104 @@ const deleteProject = (projectId) => {
 
           <div>
             <div class="mb-1 flex items-center justify-between gap-2">
-              <label for="project-clipboard" class="block text-sm font-medium text-gray-700">Clipboard Screen Notes (optional)</label>
+              <label for="project-clipboard" class="block text-sm font-medium text-gray-700">Clipboard / Files (optional)</label>
               <button
                 type="button"
                 class="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 @click="pasteFromClipboard(createProjectForm, 'clipboard_text')"
               >
-                Paste from clipboard
+                Paste text
               </button>
             </div>
-            <textarea
-              id="project-clipboard"
-              v-model="createProjectForm.clipboard_text"
-              rows="3"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Paste copied screen notes for this project"
-            ></textarea>
-            <p v-if="createProjectForm.errors.clipboard_text" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.clipboard_text }}</p>
-          </div>
 
-          <div>
-            <label for="project-attachments" class="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
-            <input
-              id="project-attachments"
-              type="file"
-              multiple
-              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-              @change="onCreateProjectAttachmentsSelected"
+            <div
+              class="rounded-lg border border-dashed p-3 transition"
+              :class="isCreateProjectDropActive ? 'border-indigo-400 bg-indigo-50/60' : 'border-gray-300 bg-gray-50/40'"
+              role="button"
+              tabindex="0"
+              @dragover.prevent="isCreateProjectDropActive = true"
+              @dragleave="isCreateProjectDropActive = false"
+              @drop="onCreateProjectDrop"
+              @paste="onCreateProjectPaste"
+              @click="openCreateProjectFilePicker"
             >
-            <p class="mt-1 text-xs text-gray-500">You can select multiple files. Max 10MB per file.</p>
+              <p class="mb-2 text-xs text-gray-500">Paste text/screenshots, drag & drop files, or click this area to upload from PC.</p>
+
+              <input
+                ref="createProjectFileInput"
+                id="project-attachments"
+                type="file"
+                multiple
+                class="hidden"
+                @change="onCreateProjectAttachmentsSelected"
+              >
+
+              <textarea
+                id="project-clipboard"
+                v-model="createProjectForm.clipboard_text"
+                rows="3"
+                class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Paste copied screen notes for this project"
+                @click.stop
+              ></textarea>
+
+              <div class="mt-2">
+                <button
+                  type="button"
+                  class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+                  title="Attach files"
+                  aria-label="Attach files"
+                  @click.stop="openCreateProjectFilePicker"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 015 5v5a3 3 0 11-6 0V8a1 1 0 112 0v5a1 1 0 102 0V8a3 3 0 10-6 0v5a5 5 0 1010 0V8a1 1 0 112 0v5a7 7 0 11-14 0V8a5 5 0 015-5z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <div v-if="createProjectForm.attachments.length" class="mt-3 rounded-md border border-gray-200 bg-white p-2" @click.stop>
+                <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Attached files</p>
+                <ul class="max-h-36 space-y-1 overflow-auto">
+                  <li
+                    v-for="(file, index) in createProjectForm.attachments"
+                    :key="`${file.name}-${index}`"
+                    class="flex items-center justify-between gap-2 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                  >
+                    <div class="flex min-w-0 items-center gap-2">
+                      <button
+                        v-if="file.__previewUrl"
+                        type="button"
+                        class="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-100"
+                        :title="`Preview ${file.name}`"
+                        @click.stop="openAttachmentPreview(file)"
+                      >
+                        <img
+                          :src="file.__previewUrl"
+                          alt="Preview"
+                          class="h-full w-full object-cover"
+                        >
+                      </button>
+                      <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-500">
+                        FILE
+                      </div>
+                      <div class="min-w-0">
+                        <p class="truncate font-medium" :title="file.name">{{ index + 1 }}. {{ file.name }}</p>
+                        <p class="text-[10px] text-gray-500">{{ formatFileSize(file.size) }}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                      @click.stop="removeCreateProjectAttachment(index)"
+                    >
+                      x
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <p v-if="createProjectForm.errors.clipboard_text" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.clipboard_text }}</p>
             <p v-if="createProjectForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.attachments }}</p>
             <p v-if="createProjectForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors['attachments.0'] }}</p>
           </div>
