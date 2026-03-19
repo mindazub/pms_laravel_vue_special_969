@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Note;
 use App\Models\Project;
-use Illuminate\Http\UploadedFile;
+use App\Services\AttachmentService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -15,10 +15,11 @@ class ProjectController extends Controller
     /**
      * Display a listing of projects and optionally a selected project's board.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, AttachmentService $attachmentService): Response
     {
         $projects = $request->user()
             ->projects()
+            ->with('attachmentRecords')
             ->withCount([
                 'notes',
                 'notes as done_notes_count' => fn ($query) => $query->where('status', Note::STATUS_DONE),
@@ -27,7 +28,7 @@ class ProjectController extends Controller
             ->paginate(8)
             ->withQueryString();
 
-        $projects->getCollection()->transform(function (Project $project) {
+        $projects->getCollection()->transform(function (Project $project) use ($attachmentService) {
             $totalNotes = (int) $project->notes_count;
             $doneNotes = (int) $project->done_notes_count;
             $completionPercentage = $totalNotes === 0
@@ -38,7 +39,7 @@ class ProjectController extends Controller
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
-                'attachments' => $project->attachments ?? [],
+                'attachments' => $this->serializeAttachments($project, $attachmentService),
                 'notes_count' => $totalNotes,
                 'done_notes_count' => $doneNotes,
                 'completion_percentage' => $completionPercentage,
@@ -59,6 +60,7 @@ class ProjectController extends Controller
                     'notes',
                     'notes as done_notes_count' => fn ($query) => $query->where('status', Note::STATUS_DONE),
                 ])
+                ->with(['attachmentRecords', 'notes.attachmentRecords'])
                 ->with('notes')
                 ->first();
 
@@ -73,7 +75,7 @@ class ProjectController extends Controller
                     'id' => $project->id,
                     'name' => $project->name,
                     'description' => $project->description,
-                    'attachments' => $project->attachments ?? [],
+                    'attachments' => $this->serializeAttachments($project, $attachmentService),
                     'notes_count' => $totalNotes,
                     'done_notes_count' => $doneNotes,
                     'completion_percentage' => $completionPercentage,
@@ -87,7 +89,7 @@ class ProjectController extends Controller
                         'id' => $note->id,
                         'title' => $note->title,
                         'content' => $note->content,
-                        'attachments' => $note->attachments ?? [],
+                        'attachments' => $this->serializeAttachments($note, $attachmentService),
                         'status' => $note->status,
                         'progress' => (int) $note->progress,
                     ]);
@@ -106,7 +108,7 @@ class ProjectController extends Controller
     /**
      * Store a newly created project.
      */
-    public function store(Request $request)
+    public function store(Request $request, AttachmentService $attachmentService)
     {
         $validated = $request->validate([
             'name' => [
@@ -118,8 +120,13 @@ class ProjectController extends Controller
                 ),
             ],
             'description' => ['nullable', 'string'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
+            'temp_attachment_ids' => ['nullable', 'array'],
+            'temp_attachment_ids.*' => [
+                'integer',
+                Rule::exists('temporary_attachments', 'id')->where(
+                    fn ($query) => $query->where('user_id', $request->user()->id)
+                ),
+            ],
         ]);
 
         $project = $request->user()->projects()->create([
@@ -128,11 +135,11 @@ class ProjectController extends Controller
             'attachments' => [],
         ]);
 
-        if ($request->hasFile('attachments')) {
-            $project->update([
-                'attachments' => $this->storeUploadedFiles($request->file('attachments'), "projects/{$project->id}"),
-            ]);
-        }
+        $attachmentService->finalizeTemporaryAttachments(
+            $project,
+            $request->user(),
+            $validated['temp_attachment_ids'] ?? []
+        );
 
         return redirect()
             ->route('projects.index', ['project' => $project->id])
@@ -142,7 +149,7 @@ class ProjectController extends Controller
     /**
      * Update the specified project.
      */
-    public function update(Request $request, Project $project)
+    public function update(Request $request, Project $project, AttachmentService $attachmentService)
     {
         $ownedProject = $request->user()->projects()->whereKey($project->id)->firstOrFail();
 
@@ -156,25 +163,26 @@ class ProjectController extends Controller
                     ->ignore($ownedProject->id),
             ],
             'description' => ['nullable', 'string'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
+            'temp_attachment_ids' => ['nullable', 'array'],
+            'temp_attachment_ids.*' => [
+                'integer',
+                Rule::exists('temporary_attachments', 'id')->where(
+                    fn ($query) => $query->where('user_id', $request->user()->id)
+                ),
+            ],
             'selected_project_id' => ['nullable', 'integer'],
         ]);
-
-        $attachments = $ownedProject->attachments ?? [];
-
-        if ($request->hasFile('attachments')) {
-            $attachments = array_merge(
-                $attachments,
-                $this->storeUploadedFiles($request->file('attachments'), "projects/{$ownedProject->id}")
-            );
-        }
 
         $ownedProject->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'attachments' => $attachments,
         ]);
+
+        $attachmentService->finalizeTemporaryAttachments(
+            $ownedProject,
+            $request->user(),
+            $validated['temp_attachment_ids'] ?? []
+        );
 
         $selectedProjectId = (int) ($validated['selected_project_id'] ?? $ownedProject->id);
 
@@ -205,28 +213,17 @@ class ProjectController extends Controller
             ->with('success', 'Project deleted successfully.');
     }
 
-    /**
-     * @param  array<int, UploadedFile>|null  $files
-     * @return array<int, array{original_name: string, path: string, mime_type: string, size: int, url: string}>
-     */
-    private function storeUploadedFiles(?array $files, string $directory): array
+    private function serializeAttachments(Project|Note $model, AttachmentService $attachmentService): array
     {
-        if (! $files) {
-            return [];
+        if ($model->relationLoaded('attachmentRecords') && $model->attachmentRecords->isNotEmpty()) {
+            return $model->attachmentRecords
+                ->map(fn ($attachment) => $attachmentService->mapAttachment($attachment))
+                ->values()
+                ->all();
         }
 
-        return collect($files)
-            ->map(function (UploadedFile $file) use ($directory) {
-                $path = $file->store($directory, 'public');
-
-                return [
-                    'original_name' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
-                    'size' => (int) $file->getSize(),
-                    'url' => asset('storage/'.$path),
-                ];
-            })
+        return collect($model->attachments ?? [])
+            ->map(fn ($attachment) => $attachmentService->mapLegacyAttachment($attachment))
             ->values()
             ->all();
     }

@@ -29,4 +29,9 @@ class Project extends Model
     {
         return $this->hasMany(Note::class);
     }
+
+    public function attachmentRecords()
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->orderBy('sort_order');
+    }
 }

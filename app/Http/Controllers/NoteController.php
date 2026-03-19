@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
-use App\Models\Project;
-use Illuminate\Http\UploadedFile;
+use App\Services\AttachmentService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -34,7 +33,7 @@ class NoteController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, AttachmentService $attachmentService)
     {
         $this->authorize('create', Note::class);
 
@@ -49,8 +48,13 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'status' => ['nullable', Rule::in(Note::STATUSES)],
             'progress' => ['nullable', Rule::in(self::PROGRESS_STEPS)],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
+            'temp_attachment_ids' => ['nullable', 'array'],
+            'temp_attachment_ids.*' => [
+                'integer',
+                Rule::exists('temporary_attachments', 'id')->where(
+                    fn ($query) => $query->where('user_id', $request->user()->id)
+                ),
+            ],
         ]);
 
         $validated['status'] = $validated['status'] ?? Note::STATUS_TODO;
@@ -69,8 +73,13 @@ class NoteController extends Controller
             'content' => $validated['content'] ?? '',
             'status' => $validated['status'],
             'progress' => $validated['progress'],
-            'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
         ]);
+
+        $attachmentService->finalizeTemporaryAttachments(
+            $note,
+            $request->user(),
+            $validated['temp_attachment_ids'] ?? []
+        );
 
         if (! $request->expectsJson()) {
             return redirect()
@@ -87,13 +96,14 @@ class NoteController extends Controller
     public function show(Note $note)
     {
         $this->authorize('view', $note);
+
         return response()->json($note);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Note $note)
+    public function update(Request $request, Note $note, AttachmentService $attachmentService)
     {
         $this->authorize('update', $note);
 
@@ -102,8 +112,13 @@ class NoteController extends Controller
             'content' => 'sometimes|nullable|string',
             'status' => ['sometimes', Rule::in(Note::STATUSES)],
             'progress' => ['sometimes', Rule::in(self::PROGRESS_STEPS)],
-            'attachments' => ['sometimes', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
+            'temp_attachment_ids' => ['sometimes', 'array'],
+            'temp_attachment_ids.*' => [
+                'integer',
+                Rule::exists('temporary_attachments', 'id')->where(
+                    fn ($query) => $query->where('user_id', $request->user()->id)
+                ),
+            ],
         ]);
 
         if (array_key_exists('progress', $validated) && (int) $validated['progress'] === 100) {
@@ -128,14 +143,12 @@ class NoteController extends Controller
             $validated['content'] = '';
         }
 
-        if ($request->hasFile('attachments')) {
-            $validated['attachments'] = array_merge(
-                $note->attachments ?? [],
-                $this->storeUploadedFiles($request->file('attachments'), "notes/{$note->id}")
-            );
-        }
+        $tempAttachmentIds = $validated['temp_attachment_ids'] ?? [];
+        unset($validated['temp_attachment_ids']);
 
         $note->update($validated);
+
+        $attachmentService->finalizeTemporaryAttachments($note, $request->user(), $tempAttachmentIds);
 
         if (! $request->expectsJson()) {
             return redirect()
@@ -164,31 +177,5 @@ class NoteController extends Controller
         }
 
         return response()->noContent();
-    }
-
-    /**
-     * @param  array<int, UploadedFile>|null  $files
-     * @return array<int, array{original_name: string, path: string, mime_type: string, size: int, url: string}>
-     */
-    private function storeUploadedFiles(?array $files, string $directory): array
-    {
-        if (! $files) {
-            return [];
-        }
-
-        return collect($files)
-            ->map(function (UploadedFile $file) use ($directory) {
-                $path = $file->store($directory, 'public');
-
-                return [
-                    'original_name' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
-                    'size' => (int) $file->getSize(),
-                    'url' => asset('storage/'.$path),
-                ];
-            })
-            ->values()
-            ->all();
     }
 }

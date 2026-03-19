@@ -1,4 +1,6 @@
 <script setup>
+import axios from 'axios';
+import AttachmentComposer from '@/Components/AttachmentComposer.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -114,7 +116,6 @@ const createForm = useForm({
   project_id: selectedProjectId.value,
   title: '',
   content: '',
-  attachments: [],
   status: 'todo',
   progress: 0,
 });
@@ -130,14 +131,12 @@ const editForm = useForm({
 const createProjectForm = useForm({
   name: '',
   description: '',
-  attachments: [],
 });
 
 const editProjectForm = useForm({
   id: null,
   name: '',
   description: '',
-  attachments: [],
   selected_project_id: selectedProjectId.value,
 });
 
@@ -146,6 +145,12 @@ const isCreateProjectModalOpen = ref(false);
 const isEditProjectModalOpen = ref(false);
 const draggingNoteId = ref(null);
 const dragOverStatus = ref(null);
+const createTaskTemporaryAttachments = ref([]);
+const editTaskTemporaryAttachments = ref([]);
+const editTaskExistingAttachments = ref([]);
+const createProjectTemporaryAttachments = ref([]);
+const editProjectTemporaryAttachments = ref([]);
+const editProjectExistingAttachments = ref([]);
 
 watch(
   () => selectedProjectId.value,
@@ -153,8 +158,9 @@ watch(
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
-    createForm.reset('title', 'content', 'attachments');
+    createForm.reset('title', 'content');
     createForm.clearErrors();
+    createTaskTemporaryAttachments.value = [];
     isCreateModalOpen.value = false;
 
     editProjectForm.selected_project_id = projectId;
@@ -168,10 +174,18 @@ const projectProgressClass = (project) =>
   project.is_done
     ? 'bg-emerald-500'
     : project.completion_percentage >= 75
-      ? 'bg-blue-600'
+      ? 'bg-brand-700'
       : project.completion_percentage >= 50
-        ? 'bg-blue-500'
-        : 'bg-gray-400';
+        ? 'bg-brand-500'
+        : 'bg-brand-300';
+
+const discardTemporaryAttachments = async (attachments) => {
+  await Promise.all(
+    attachments.map((attachment) =>
+      axios.delete(route('temporary-attachments.destroy', attachment.id)).catch(() => undefined)
+    )
+  );
+};
 
 const openCreateModal = () => {
   if (!selectedProjectId.value) {
@@ -181,10 +195,15 @@ const openCreateModal = () => {
   isCreateModalOpen.value = true;
 };
 
-const closeCreateModal = () => {
+const closeCreateModal = ({ discardUploads = true } = {}) => {
+  if (discardUploads && createTaskTemporaryAttachments.value.length > 0) {
+    void discardTemporaryAttachments([...createTaskTemporaryAttachments.value]);
+  }
+
+  createTaskTemporaryAttachments.value = [];
   isCreateModalOpen.value = false;
   createForm.clearErrors();
-  createForm.reset('title', 'content', 'attachments');
+  createForm.reset('title', 'content');
   createForm.status = 'todo';
   createForm.progress = 0;
 };
@@ -195,26 +214,44 @@ const createNote = () => {
   }
 
   createForm.project_id = selectedProjectId.value;
+  createForm.transform((data) => ({
+    ...data,
+    temp_attachment_ids: createTaskTemporaryAttachments.value.map((attachment) => attachment.id),
+  }));
   createForm.post(route('notes.store'), {
     preserveScroll: true,
-    forceFormData: true,
-    onSuccess: () => closeCreateModal(),
+    onSuccess: () => {
+      createTaskTemporaryAttachments.value = [];
+      closeCreateModal({ discardUploads: false });
+    },
   });
 };
 
 const startEditing = (note) => {
+  if (editTaskTemporaryAttachments.value.length > 0) {
+    void discardTemporaryAttachments([...editTaskTemporaryAttachments.value]);
+  }
+
   editForm.id = note.id;
   editForm.title = note.title;
   editForm.content = note.content;
   editForm.status = note.status;
   editForm.progress = note.progress;
+  editTaskTemporaryAttachments.value = [];
+  editTaskExistingAttachments.value = note.attachments ?? [];
 };
 
-const cancelEditing = () => {
+const cancelEditing = ({ discardUploads = true } = {}) => {
+  if (discardUploads && editTaskTemporaryAttachments.value.length > 0) {
+    void discardTemporaryAttachments([...editTaskTemporaryAttachments.value]);
+  }
+
   editForm.reset();
   editForm.id = null;
   editForm.status = 'todo';
   editForm.progress = 0;
+  editTaskTemporaryAttachments.value = [];
+  editTaskExistingAttachments.value = [];
 };
 
 const updateNote = () => {
@@ -222,9 +259,17 @@ const updateNote = () => {
     return;
   }
 
+  editForm.transform((data) => ({
+    ...data,
+    temp_attachment_ids: editTaskTemporaryAttachments.value.map((attachment) => attachment.id),
+  }));
+
   editForm.put(route('notes.update', editForm.id), {
     preserveScroll: true,
-    onSuccess: () => cancelEditing(),
+    onSuccess: () => {
+      editTaskTemporaryAttachments.value = [];
+      cancelEditing({ discardUploads: false });
+    },
   });
 };
 
@@ -335,20 +380,32 @@ const moveDraggedNoteTo = (status) => {
 const openCreateProjectModal = () => {
   createProjectForm.clearErrors();
   createProjectForm.reset();
+  createProjectTemporaryAttachments.value = [];
   isCreateProjectModalOpen.value = true;
 };
 
-const closeCreateProjectModal = () => {
+const closeCreateProjectModal = ({ discardUploads = true } = {}) => {
+  if (discardUploads && createProjectTemporaryAttachments.value.length > 0) {
+    void discardTemporaryAttachments([...createProjectTemporaryAttachments.value]);
+  }
+
+  createProjectTemporaryAttachments.value = [];
   isCreateProjectModalOpen.value = false;
   createProjectForm.clearErrors();
   createProjectForm.reset();
 };
 
 const createProject = () => {
+  createProjectForm.transform((data) => ({
+    ...data,
+    temp_attachment_ids: createProjectTemporaryAttachments.value.map((attachment) => attachment.id),
+  }));
   createProjectForm.post(route('projects.store'), {
     preserveScroll: true,
-    forceFormData: true,
-    onSuccess: () => closeCreateProjectModal(),
+    onSuccess: () => {
+      createProjectTemporaryAttachments.value = [];
+      closeCreateProjectModal({ discardUploads: false });
+    },
   });
 };
 
@@ -356,13 +413,20 @@ const openEditProjectModal = (project) => {
   editProjectForm.id = project.id;
   editProjectForm.name = project.name;
   editProjectForm.description = project.description ?? '';
-  editProjectForm.attachments = [];
+  editProjectTemporaryAttachments.value = [];
+  editProjectExistingAttachments.value = project.attachments ?? [];
   editProjectForm.selected_project_id = selectedProjectId.value;
   editProjectForm.clearErrors();
   isEditProjectModalOpen.value = true;
 };
 
-const closeEditProjectModal = () => {
+const closeEditProjectModal = ({ discardUploads = true } = {}) => {
+  if (discardUploads && editProjectTemporaryAttachments.value.length > 0) {
+    void discardTemporaryAttachments([...editProjectTemporaryAttachments.value]);
+  }
+
+  editProjectTemporaryAttachments.value = [];
+  editProjectExistingAttachments.value = [];
   isEditProjectModalOpen.value = false;
   editProjectForm.clearErrors();
   editProjectForm.reset();
@@ -376,23 +440,17 @@ const updateProject = () => {
   }
 
   editProjectForm.selected_project_id = selectedProjectId.value;
+  editProjectForm.transform((data) => ({
+    ...data,
+    temp_attachment_ids: editProjectTemporaryAttachments.value.map((attachment) => attachment.id),
+  }));
   editProjectForm.patch(route('projects.update', editProjectForm.id), {
     preserveScroll: true,
-    forceFormData: true,
-    onSuccess: () => closeEditProjectModal(),
+    onSuccess: () => {
+      editProjectTemporaryAttachments.value = [];
+      closeEditProjectModal({ discardUploads: false });
+    },
   });
-};
-
-const onCreateTaskAttachmentsSelected = (event) => {
-  createForm.attachments = Array.from(event.target.files ?? []);
-};
-
-const onCreateProjectAttachmentsSelected = (event) => {
-  createProjectForm.attachments = Array.from(event.target.files ?? []);
-};
-
-const onEditProjectAttachmentsSelected = (event) => {
-  editProjectForm.attachments = Array.from(event.target.files ?? []);
 };
 
 const deleteProject = (projectId) => {
@@ -414,16 +472,16 @@ const deleteProject = (projectId) => {
 
   <AuthenticatedLayout>
     <template #header>
-      <h2 class="text-xl font-semibold leading-tight text-gray-900">Projects</h2>
+      <h2 class="text-xl font-semibold leading-tight text-brand-900">Projects</h2>
     </template>
 
     <div class="py-8">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+        <div class="mb-6 rounded-xl border border-brand-100 bg-white p-4 shadow-card">
+          <div class="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
             <button
               type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-200 bg-white text-brand-900 transition hover:bg-brand-50"
               title="Previous week"
               @click="goToPreviousWeek"
             >
@@ -433,13 +491,13 @@ const deleteProject = (projectId) => {
             </button>
 
             <div class="text-center">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week View</p>
-              <p class="text-base font-semibold text-gray-900">{{ weekRangeLabel }}</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">Week View</p>
+              <p class="text-base font-semibold text-brand-900">{{ weekRangeLabel }}</p>
             </div>
 
             <button
               type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-200 bg-white text-brand-900 transition hover:bg-brand-50"
               title="Next week"
               @click="goToNextWeek"
             >
@@ -456,7 +514,7 @@ const deleteProject = (projectId) => {
                 :key="day.iso"
                 class="rounded-lg border px-3 py-2 text-center"
                 :class="day.isToday && isCurrentWeekShown
-                  ? 'border-blue-500 bg-blue-50 text-blue-900'
+                  ? 'border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-500/40'
                   : day.isWeekend
                     ? 'border-red-200 bg-red-50 text-red-800'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
@@ -471,7 +529,7 @@ const deleteProject = (projectId) => {
           <div class="mt-3 flex justify-end" v-if="!isCurrentWeekShown">
             <button
               type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex items-center rounded-md border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-brand-900 transition hover:bg-brand-50"
               @click="goToCurrentWeek"
             >
               Back to current week
@@ -479,13 +537,13 @@ const deleteProject = (projectId) => {
           </div>
         </div>
 
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="mb-5 border-b border-gray-100 pb-4">
+        <div class="mb-6 rounded-xl border border-brand-100 bg-white p-4 shadow-card">
+          <div class="mb-5 border-b border-brand-100 pb-4">
             <div class="flex items-center gap-2">
-              <h3 class="text-lg font-semibold text-gray-900">Project List</h3>
+              <h3 class="text-lg font-semibold text-brand-900">Project List</h3>
               <button
                 type="button"
-                class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-gray-100 text-gray-700 transition hover:bg-gray-200"
+                class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
                 title="Add project"
                 @click="openCreateProjectModal"
               >
@@ -494,13 +552,13 @@ const deleteProject = (projectId) => {
                 </svg>
               </button>
             </div>
-            <p class="text-sm text-gray-500">Manage projects and select one to view its board.</p>
+            <p class="text-sm text-slate-500">Manage projects and select one to view its board.</p>
           </div>
 
-          <div class="overflow-x-auto rounded-lg border border-gray-200">
+          <div class="overflow-x-auto rounded-lg border border-brand-100">
             <table class="min-w-full text-left text-sm">
-              <thead class="bg-gray-50">
-                <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+              <thead class="bg-brand-50">
+                <tr class="border-b border-brand-100 text-xs uppercase tracking-wide text-brand-700">
                   <th class="px-3 py-2">Project</th>
                   <th class="px-3 py-2">Tasks</th>
                   <th class="px-3 py-2">Completion</th>
@@ -511,27 +569,27 @@ const deleteProject = (projectId) => {
                 <tr
                   v-for="project in projects.data"
                   :key="project.id"
-                  class="border-b border-gray-100"
+                  class="border-b border-brand-50"
                   :class="{
-                    'bg-emerald-50/70': selectedProjectId === project.id && project.is_done,
-                    'bg-blue-50/70': selectedProjectId === project.id && !project.is_done,
+                    'bg-emerald-50/60': selectedProjectId === project.id && project.is_done,
+                    'bg-brand-50/80': selectedProjectId === project.id && !project.is_done,
                   }"
                 >
                   <td class="px-3 py-3">
-                    <p class="font-medium text-gray-900">{{ project.name }}</p>
-                    <p v-if="project.description" class="text-xs text-gray-500">{{ project.description }}</p>
+                    <p class="font-medium text-brand-900">{{ project.name }}</p>
+                    <p v-if="project.description" class="text-xs text-slate-500">{{ project.description }}</p>
                   </td>
-                  <td class="px-3 py-3 text-gray-600">{{ project.done_notes_count }} / {{ project.notes_count }}</td>
+                  <td class="px-3 py-3 text-slate-600">{{ project.done_notes_count }} / {{ project.notes_count }}</td>
                   <td class="px-3 py-3">
                     <div class="flex items-center gap-2">
-                      <div class="h-2.5 w-28 rounded-full bg-gray-200">
+                      <div class="h-2.5 w-28 rounded-full bg-slate-200">
                         <div
                           class="h-2.5 rounded-full transition-all"
                           :class="projectProgressClass(project)"
                           :style="{ width: `${project.completion_percentage}%` }"
                         ></div>
                       </div>
-                      <span class="text-xs font-semibold" :class="project.is_done ? 'text-emerald-700' : 'text-gray-700'">
+                      <span class="text-xs font-semibold" :class="project.is_done ? 'text-emerald-700' : 'text-brand-700'">
                         {{ project.completion_percentage }}%
                       </span>
                     </div>
@@ -540,7 +598,7 @@ const deleteProject = (projectId) => {
                     <div class="inline-flex items-center gap-1.5">
                       <Link
                         :href="route('projects.index', { project: project.id })"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-300 bg-indigo-50 text-indigo-700 transition hover:bg-indigo-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
                         title="View board"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -549,7 +607,7 @@ const deleteProject = (projectId) => {
                       </Link>
                       <button
                         type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
                         title="Edit project"
                         @click="openEditProjectModal(project)"
                       >
@@ -577,14 +635,14 @@ const deleteProject = (projectId) => {
 
         </div>
 
-        <div v-if="selectedProject" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="mb-5 border-b border-gray-100 pb-4">
-            <h3 class="text-lg font-semibold text-gray-900">{{ selectedProject.name }} Board</h3>
-            <p class="text-sm" :class="selectedProject.is_done ? 'text-emerald-700' : 'text-gray-500'">
+        <div v-if="selectedProject" class="rounded-xl border border-brand-100 bg-white p-4 shadow-card">
+          <div class="mb-5 border-b border-brand-100 pb-4">
+            <h3 class="text-lg font-semibold text-brand-900">{{ selectedProject.name }} Board</h3>
+            <p class="text-sm" :class="selectedProject.is_done ? 'text-emerald-700' : 'text-slate-500'">
               {{ selectedProject.done_notes_count }} of {{ selectedProject.notes_count }} tasks done
               ({{ selectedProject.completion_percentage }}%)
             </p>
-            <p v-if="selectedProject.description" class="mt-1 text-sm text-gray-600">{{ selectedProject.description }}</p>
+            <p v-if="selectedProject.description" class="mt-1 text-sm text-slate-600">{{ selectedProject.description }}</p>
             <div v-if="selectedProject.attachments?.length" class="mt-2 flex flex-wrap gap-2">
               <a
                 v-for="attachment in selectedProject.attachments"
@@ -592,7 +650,7 @@ const deleteProject = (projectId) => {
                 :href="attachment.url"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                class="inline-flex items-center rounded-md border border-brand-100 bg-white px-2 py-1 text-xs text-brand-800 transition hover:bg-brand-50"
               >
                 {{ attachment.original_name }}
               </a>
@@ -603,22 +661,22 @@ const deleteProject = (projectId) => {
             <section
               v-for="column in columns"
               :key="column.key"
-              class="min-h-[360px] rounded-xl border border-gray-200 bg-gray-50 p-4"
-              :class="{ 'ring-2 ring-blue-400 ring-offset-2': dragOverStatus === column.key }"
+              class="min-h-[360px] rounded-xl border border-brand-100 bg-brand-50/30 p-4"
+              :class="{ 'ring-2 ring-brand-400 ring-offset-2': dragOverStatus === column.key }"
               @dragover.prevent="onDragOverColumn(column.key)"
               @dragleave="dragOverStatus = null"
               @drop="moveDraggedNoteTo(column.key)"
             >
               <div class="mb-3 flex items-start justify-between gap-2">
                 <div>
-                  <h3 class="text-base font-semibold text-gray-900">{{ column.title }}</h3>
-                  <p class="text-xs text-gray-500">{{ column.description }}</p>
+                  <h3 class="text-base font-semibold text-brand-900">{{ column.title }}</h3>
+                  <p class="text-xs text-slate-500">{{ column.description }}</p>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <button
                     v-if="column.key === 'todo'"
                     type="button"
-                    class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                    class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-brand-200 bg-white text-brand-700 transition hover:bg-brand-50"
                     title="Add item"
                     @click="openCreateModal"
                   >
@@ -636,7 +694,7 @@ const deleteProject = (projectId) => {
                 <article
                   v-for="note in notesByStatus(column.key)"
                   :key="note.id"
-                  class="cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:cursor-grabbing"
+                  class="cursor-grab rounded-lg border border-brand-100 bg-white p-3 shadow-sm active:cursor-grabbing"
                   draggable="true"
                   @dragstart="onDragStart($event, note.id)"
                   @dragend="onDragEnd"
@@ -646,17 +704,40 @@ const deleteProject = (projectId) => {
                       <input
                         v-model="editForm.title"
                         type="text"
-                        class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                       >
                       <textarea
                         v-model="editForm.content"
                         rows="3"
-                        class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                       ></textarea>
+                      <AttachmentComposer
+                        v-model="editTaskTemporaryAttachments"
+                        label="Attachments (optional)"
+                        hint="Paste a screenshot, drop files, or click to browse for this task."
+                        :disabled="editForm.processing"
+                      />
+                      <p v-if="editForm.errors.temp_attachment_ids" class="text-xs text-red-600">{{ editForm.errors.temp_attachment_ids }}</p>
+                      <p v-if="editForm.errors['temp_attachment_ids.0']" class="text-xs text-red-600">{{ editForm.errors['temp_attachment_ids.0'] }}</p>
+                      <div v-if="editTaskExistingAttachments.length" class="rounded-lg border border-brand-100 bg-brand-50 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">Existing files</p>
+                        <div class="flex flex-wrap gap-2">
+                          <a
+                            v-for="attachment in editTaskExistingAttachments"
+                            :key="`task-edit-attachment-${note.id}-${attachment.path}`"
+                            :href="attachment.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center rounded-md border border-brand-100 bg-white px-2 py-1 text-xs text-brand-800 transition hover:bg-brand-50"
+                          >
+                            {{ attachment.original_name }}
+                          </a>
+                        </div>
+                      </div>
                       <div class="grid grid-cols-2 gap-2">
                         <select
                           v-model="editForm.status"
-                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         >
                           <option v-for="option in columns" :key="option.key" :value="option.key">
                             {{ option.title }}
@@ -664,7 +745,7 @@ const deleteProject = (projectId) => {
                         </select>
                         <select
                           v-model="editForm.progress"
-                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         >
                           <option v-for="step in progressSteps" :key="step" :value="step">
                             {{ step }}%
@@ -685,7 +766,7 @@ const deleteProject = (projectId) => {
                         </button>
                         <button
                           type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100"
                           title="Cancel"
                           @click="cancelEditing"
                         >
@@ -699,14 +780,14 @@ const deleteProject = (projectId) => {
 
                   <template v-else>
                     <div class="flex items-start justify-between gap-2">
-                      <h4 class="text-sm font-semibold text-gray-900">{{ note.title }}</h4>
-                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-500" title="Drag to move">
+                      <h4 class="text-sm font-semibold text-brand-900">{{ note.title }}</h4>
+                      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-brand-100 bg-brand-50 text-brand-400" title="Drag to move">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM7 16a1 1 0 11-2 0 1 1 0 012 0zM15 4a1 1 0 11-2 0 1 1 0 012 0zM15 10a1 1 0 11-2 0 1 1 0 012 0zM15 16a1 1 0 11-2 0 1 1 0 012 0z" />
                         </svg>
                       </span>
                     </div>
-                    <p v-if="note.content" class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
+                    <p v-if="note.content" class="mt-1 text-sm text-slate-600">{{ note.content }}</p>
 
                     <div v-if="note.attachments?.length" class="mt-2 flex flex-wrap gap-2">
                       <a
@@ -715,37 +796,37 @@ const deleteProject = (projectId) => {
                         :href="attachment.url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                        class="inline-flex items-center rounded-md border border-brand-100 bg-white px-2 py-1 text-xs text-brand-700 transition hover:bg-brand-50"
                       >
                         {{ attachment.original_name }}
                       </a>
                     </div>
 
                     <div v-if="note.status === 'in_progress'" class="mt-2">
-                      <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
+                      <div class="mb-1 flex items-center justify-between text-xs font-medium text-slate-600">
                         <span>Progress</span>
                         <span>{{ note.progress }}%</span>
                       </div>
                       <button
                         type="button"
-                        class="block w-full rounded-full border border-blue-200 bg-white p-1"
+                        class="block w-full rounded-full border border-brand-200 bg-white p-1"
                         title="Click to advance progress"
                         @click="advanceProgress(note)"
                       >
-                        <div class="h-2 w-full rounded-full bg-blue-100">
+                        <div class="h-2 w-full rounded-full bg-brand-100">
                           <div
-                            class="h-2 rounded-full bg-blue-500 transition-all duration-200"
+                            class="h-2 rounded-full bg-brand-500 transition-all duration-200"
                             :style="{ width: `${note.progress}%` }"
                           ></div>
                         </div>
                       </button>
-                      <p class="mt-1 text-[11px] text-gray-500">Click the line to move to next step.</p>
+                      <p class="mt-1 text-[11px] text-slate-500">Click the line to move to next step.</p>
                     </div>
 
                     <div class="mt-3 flex justify-end gap-2">
                       <button
                         type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
                         title="Edit"
                         @click="startEditing(note)"
                       >
@@ -767,7 +848,7 @@ const deleteProject = (projectId) => {
                   </template>
                 </article>
 
-                <p v-if="notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
+                <p v-if="notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-brand-200 p-4 text-center text-sm text-brand-400">
                   Drop an item here
                 </p>
               </div>
@@ -775,7 +856,7 @@ const deleteProject = (projectId) => {
           </div>
         </div>
 
-        <div v-else class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
+        <div v-else class="rounded-xl border border-dashed border-brand-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
           Select a project from the list to show its Kanban items.
         </div>
       </div>
@@ -789,12 +870,12 @@ const deleteProject = (projectId) => {
       <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
         <div class="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900">Create Project</h3>
-            <p class="text-sm text-gray-500">Add a new project for your board.</p>
+            <h3 class="text-lg font-semibold text-brand-900">Create Project</h3>
+            <p class="text-sm text-slate-500">Add a new project for your board.</p>
           </div>
           <button
             type="button"
-            class="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             @click="closeCreateProjectModal"
           >
             Close
@@ -803,54 +884,49 @@ const deleteProject = (projectId) => {
 
         <form class="space-y-4" @submit.prevent="createProject">
           <div>
-            <label for="project-name" class="mb-1 block text-sm font-medium text-gray-700">Project name</label>
+            <label for="project-name" class="mb-1 block text-sm font-medium text-slate-700">Project name</label>
             <input
               id="project-name"
               v-model="createProjectForm.name"
               type="text"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Website redesign"
             >
             <p v-if="createProjectForm.errors.name" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.name }}</p>
           </div>
 
           <div>
-            <label for="project-description" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+            <label for="project-description" class="mb-1 block text-sm font-medium text-slate-700">Description (optional)</label>
             <textarea
               id="project-description"
               v-model="createProjectForm.description"
               rows="3"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Describe project scope"
             ></textarea>
             <p v-if="createProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.description }}</p>
           </div>
 
-          <div>
-            <label for="project-attachments" class="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
-            <input
-              id="project-attachments"
-              type="file"
-              multiple
-              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-              @change="onCreateProjectAttachmentsSelected"
-            >
-            <p class="mt-1 text-xs text-gray-500">You can select multiple files. Max 10MB per file.</p>
-            <p v-if="createProjectForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.attachments }}</p>
-            <p v-if="createProjectForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors['attachments.0'] }}</p>
-          </div>
+          <AttachmentComposer
+            v-model="createProjectTemporaryAttachments"
+            label="Attachments (optional)"
+            hint="Paste a screenshot, drop files, or click to browse for this project."
+            :disabled="createProjectForm.processing"
+          />
+          <p v-if="createProjectForm.errors.temp_attachment_ids" class="-mt-2 text-xs text-red-600">{{ createProjectForm.errors.temp_attachment_ids }}</p>
+          <p v-if="createProjectForm.errors['temp_attachment_ids.0']" class="-mt-2 text-xs text-red-600">{{ createProjectForm.errors['temp_attachment_ids.0'] }}</p>
 
           <div class="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
               @click="closeCreateProjectModal"
             >
               Cancel
             </button>
             <button
               type="submit"
-              class="inline-flex items-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              class="inline-flex items-center rounded-md border border-transparent bg-brand-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="createProjectForm.processing"
             >
               {{ createProjectForm.processing ? 'Saving...' : 'Create Project' }}
@@ -868,12 +944,12 @@ const deleteProject = (projectId) => {
       <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
         <div class="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900">Edit Project</h3>
-            <p class="text-sm text-gray-500">Update project name.</p>
+            <h3 class="text-lg font-semibold text-brand-900">Edit Project</h3>
+            <p class="text-sm text-slate-500">Update project name.</p>
           </div>
           <button
             type="button"
-            class="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             @click="closeEditProjectModal"
           >
             Close
@@ -882,53 +958,48 @@ const deleteProject = (projectId) => {
 
         <form class="space-y-4" @submit.prevent="updateProject">
           <div>
-            <label for="project-edit-name" class="mb-1 block text-sm font-medium text-gray-700">Project name</label>
+            <label for="project-edit-name" class="mb-1 block text-sm font-medium text-slate-700">Project name</label>
             <input
               id="project-edit-name"
               v-model="editProjectForm.name"
               type="text"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Website redesign"
             >
             <p v-if="editProjectForm.errors.name" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.name }}</p>
           </div>
 
           <div>
-            <label for="project-edit-description" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+            <label for="project-edit-description" class="mb-1 block text-sm font-medium text-slate-700">Description (optional)</label>
             <textarea
               id="project-edit-description"
               v-model="editProjectForm.description"
               rows="3"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Describe project scope"
             ></textarea>
             <p v-if="editProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.description }}</p>
           </div>
 
-          <div>
-            <label for="project-edit-attachments" class="mb-1 block text-sm font-medium text-gray-700">Add attachments (optional)</label>
-            <input
-              id="project-edit-attachments"
-              type="file"
-              multiple
-              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-              @change="onEditProjectAttachmentsSelected"
-            >
-            <p class="mt-1 text-xs text-gray-500">New files are appended to existing project attachments.</p>
-            <p v-if="editProjectForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.attachments }}</p>
-            <p v-if="editProjectForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors['attachments.0'] }}</p>
-          </div>
+          <AttachmentComposer
+            v-model="editProjectTemporaryAttachments"
+            label="Add attachments (optional)"
+            hint="Paste a screenshot, drop files, or click to browse. New files are appended to the project."
+            :disabled="editProjectForm.processing"
+          />
+          <p v-if="editProjectForm.errors.temp_attachment_ids" class="-mt-2 text-xs text-red-600">{{ editProjectForm.errors.temp_attachment_ids }}</p>
+          <p v-if="editProjectForm.errors['temp_attachment_ids.0']" class="-mt-2 text-xs text-red-600">{{ editProjectForm.errors['temp_attachment_ids.0'] }}</p>
 
-          <div v-if="selectedProject?.attachments?.length" class="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Existing files</p>
+          <div v-if="editProjectExistingAttachments.length" class="rounded-lg border border-brand-100 bg-brand-50 p-3">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-700">Existing files</p>
             <div class="flex flex-wrap gap-2">
               <a
-                v-for="attachment in selectedProject.attachments"
+                v-for="attachment in editProjectExistingAttachments"
                 :key="`project-edit-attachment-${attachment.path}`"
                 :href="attachment.url"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                class="inline-flex items-center rounded-md border border-brand-100 bg-white px-2 py-1 text-xs text-brand-800 transition hover:bg-brand-50"
               >
                 {{ attachment.original_name }}
               </a>
@@ -938,14 +1009,14 @@ const deleteProject = (projectId) => {
           <div class="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
               @click="closeEditProjectModal"
             >
               Cancel
             </button>
             <button
               type="submit"
-              class="inline-flex items-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              class="inline-flex items-center rounded-md border border-transparent bg-brand-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="editProjectForm.processing"
             >
               {{ editProjectForm.processing ? 'Saving...' : 'Save Project' }}
@@ -963,12 +1034,12 @@ const deleteProject = (projectId) => {
       <div class="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
         <div class="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900">Add Item</h3>
-            <p class="text-sm text-gray-500">Create a note under {{ selectedProject?.name }}.</p>
+            <h3 class="text-lg font-semibold text-brand-900">Add Item</h3>
+            <p class="text-sm text-slate-500">Create a note under {{ selectedProject?.name }}.</p>
           </div>
           <button
             type="button"
-            class="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             @click="closeCreateModal"
           >
             Close
@@ -977,50 +1048,45 @@ const deleteProject = (projectId) => {
 
         <form class="space-y-4" @submit.prevent="createNote">
           <div>
-            <label for="modal-title" class="mb-1 block text-sm font-medium text-gray-700">Title</label>
+            <label for="modal-title" class="mb-1 block text-sm font-medium text-slate-700">Title</label>
             <input
               id="modal-title"
               v-model="createForm.title"
               type="text"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Write a concise title"
             >
             <p v-if="createForm.errors.title" class="mt-1 text-xs text-red-600">{{ createForm.errors.title }}</p>
           </div>
 
           <div>
-            <label for="modal-content" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+            <label for="modal-content" class="mb-1 block text-sm font-medium text-slate-700">Description (optional)</label>
             <textarea
               id="modal-content"
               v-model="createForm.content"
               rows="4"
-              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               placeholder="Describe the item"
             ></textarea>
             <p v-if="createForm.errors.content" class="mt-1 text-xs text-red-600">{{ createForm.errors.content }}</p>
           </div>
 
-          <div>
-            <label for="task-attachments" class="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
-            <input
-              id="task-attachments"
-              type="file"
-              multiple
-              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-              @change="onCreateTaskAttachmentsSelected"
-            >
-            <p class="mt-1 text-xs text-gray-500">You can select multiple files. Max 10MB per file.</p>
-            <p v-if="createForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ createForm.errors.attachments }}</p>
-            <p v-if="createForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ createForm.errors['attachments.0'] }}</p>
-          </div>
+          <AttachmentComposer
+            v-model="createTaskTemporaryAttachments"
+            label="Attachments (optional)"
+            hint="Paste a screenshot, drop files, or click to browse for this task."
+            :disabled="createForm.processing"
+          />
+          <p v-if="createForm.errors.temp_attachment_ids" class="-mt-2 text-xs text-red-600">{{ createForm.errors.temp_attachment_ids }}</p>
+          <p v-if="createForm.errors['temp_attachment_ids.0']" class="-mt-2 text-xs text-red-600">{{ createForm.errors['temp_attachment_ids.0'] }}</p>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="modal-status" class="mb-1 block text-sm font-medium text-gray-700">Status</label>
+              <label for="modal-status" class="mb-1 block text-sm font-medium text-slate-700">Status</label>
               <select
                 id="modal-status"
                 v-model="createForm.status"
-                class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               >
                 <option v-for="column in columns" :key="column.key" :value="column.key">
                   {{ column.title }}
@@ -1028,11 +1094,11 @@ const deleteProject = (projectId) => {
               </select>
             </div>
             <div>
-              <label for="modal-progress" class="mb-1 block text-sm font-medium text-gray-700">Progress</label>
+              <label for="modal-progress" class="mb-1 block text-sm font-medium text-slate-700">Progress</label>
               <select
                 id="modal-progress"
                 v-model="createForm.progress"
-                class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                class="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
               >
                 <option v-for="step in progressSteps" :key="step" :value="step">
                   {{ step }}%
@@ -1044,14 +1110,14 @@ const deleteProject = (projectId) => {
           <div class="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 transition hover:bg-gray-50"
+              class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
               @click="closeCreateModal"
             >
               Cancel
             </button>
             <button
               type="submit"
-              class="inline-flex items-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              class="inline-flex items-center rounded-md border border-transparent bg-brand-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="createForm.processing"
             >
               {{ createForm.processing ? 'Saving...' : 'Create Item' }}
