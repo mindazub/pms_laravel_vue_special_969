@@ -52,8 +52,8 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                         ? 'background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 48px 48px;'
                         : 'background-image: radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px); background-size: 48px 48px;'"
                 ></div>
-                <div class="absolute left-1/3 top-1/4 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-700/10 blur-3xl"></div>
-                <div class="absolute right-1/4 top-2/3 h-[400px] w-[400px] rounded-full bg-brand-500/[0.08] blur-3xl"></div>
+                <div class="absolute left-1/3 top-1/4 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-700/10 blur-3xl"></div>
+                <div class="absolute right-1/4 top-2/3 h-[400px] w-[400px] rounded-full bg-indigo-500/10 blur-3xl"></div>
             </div>
 
             <!-- Navbar -->
@@ -94,7 +94,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                             <Link
                                 v-if="$page.props.auth.user"
                                 :href="route('dashboard')"
-                                class="rounded-md bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+                                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
                             >Go to Portal</Link>
                             <template v-else>
                                 <Link :href="route('login')" class="text-sm font-medium text-slate-500 dark:text-white/60 transition hover:text-slate-900 dark:hover:text-white">Sign In</Link>
@@ -108,7 +108,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
             <!-- Hero -->
             <section class="relative z-10 px-6 pb-24 pt-28 text-center lg:px-8 lg:pt-36">
                 <div class="mx-auto max-w-4xl">
-                    <p class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-brand-500 dark:text-brand-400">Internal Project Portal</p>
+                    <p class="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Internal Project Portal</p>
                     <h1 class="text-4xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
                         Energy Data, Intelligence<br class="hidden sm:block" />
                         &amp; Solutions
@@ -168,7 +168,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
             <!-- Services / Features -->
             <section class="relative z-10 px-6 py-24 lg:px-8">
                 <div class="mx-auto max-w-6xl">
-                    <p class="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-brand-500 dark:text-brand-400">Portal Features</p>
+                    <p class="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Portal Features</p>
                     <h2 class="mb-14 text-center text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">Everything you need to manage your projects</h2>
                     <div class="grid border border-slate-200 dark:border-white/[0.08] sm:grid-cols-2 lg:grid-cols-3">
                         <div
@@ -184,7 +184,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                                 'lg:border-b': index < 3,
                             }"
                         >
-                            <div class="mb-4 h-px w-8 bg-gradient-to-r from-brand-500 to-transparent transition-all duration-300 group-hover:w-16"></div>
+                            <div class="mb-4 h-px w-8 bg-gradient-to-r from-indigo-500 to-transparent transition-all duration-300 group-hover:w-16"></div>
                             <h3 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">{{ service.title }}</h3>
                             <p class="text-xs leading-relaxed text-slate-400 dark:text-white/45">{{ service.description }}</p>
                         </div>

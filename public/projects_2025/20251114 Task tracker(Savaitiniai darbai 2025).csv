@@ -1,0 +1,375 @@
+﻿Owner,Week,Task,Category (Planned/Ad hoc),Linked Goal,Priority (H/M/L),Estimated Time (h),Status (Not started/In progress/Done/Blocked),% Complete,Comments / Blockers,Moved to Next Week (Y/N),Replaced Task (if ad hoc),Date Added
+Jonas,W47,Pokalbis su Sorainen dėl NDA šablono,Planned,Valdiklio paleidimas,M,1,,100%,,,,2025-11-14
+Jonas,W47,Pokalbis su Sorainen dėl nekonkuravimo šablono,Planned,Valdiklio paleidimas,M,1,,100%,,,,2025-11-14
+Jonas,W47,Pasirašyta darbo/paslaugų sutartis su Tautvydu,Planned,Valdikio paleidimas,H,1,,100%,,,,2025-11-14
+Jonas,W47,Baigta Litgrid metodika,Planned,Kurti inovacijas,M,14,,10%,,Y,,2025-11-14
+Jonas,W47,Valdiklio pristatymas Stiemo,Planned,Valdiklio paleidimas,H,1.5,,100%,,,,2025-11-14
+Jonas,W47,Baigta Ignitis ataskaita,Ad hoc,Valdiklio paleidimas,H,1,,0%,,Y,,2025-11-14
+Jonas,W47,Sedos BESS sutartis,Ad hoc,Konsultacinė veikla,H,1,,100%,,,,2025-11-14
+Jonas,W47,PSS/E licencijos,Planned,Konsultacinė veikla,H,1,,100%,,,,2025-11-14
+Jonas,W47,Tume PV sutartis,Ad hoc,Konsultacinė veikla,H,1,,100%,,,,2025-11-14
+Jonas,W47,Sutartis ir apmokėjimas Dovydui už IT paslaugas,Ad hoc,Valdiklio paleidimas,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,Apmokėjimas Tadui už IT paslaugas,Ad hoc,Valdiklio paleidimas,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Susisiekti su gamtosaugininkais dėl naujos studijos apie paukščius,Ad hoc,Kurti inovacijas,H,1,,50%,,Y,,2025-11-14
+Jonas,W47,Surinkti duomenis Laflora WF matematiniam modeliui,Ad hoc,Konsultacinė veikla,H,0.5,,50%,,Y,,2025-11-14
+Jonas,W47,Atnaujinti satusą dėl ST flexibility studijos,Ad hoc,Konsultacinė veikla,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Aruno BESS sutartis,Ad hoc,Konsultacinė veikla,H,1,,0%,,Y,,2025-11-14
+Jonas,W47,OLANA BESS komercinis pasiūlymas,Ad hoc,Konsultacinė veikla,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,Vičiūnų signalų sąrašas,Ad hoc,Valdiklio paleidimas,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Ignitis pokalbis dėl HPPC Lauksargių SE,Ad hoc,Konsultacinė veikla,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,Pasiūlymas Pieliams dėl konsultacijų,Ad hoc,Konsultacinė veikla,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,Viasolio klausimai,Ad hoc,Valdiklio paleidimas,H,4,,100%,,,,2025-11-14
+Jonas,W47,Rezekne ataskaitos perdavimas AST,Ad hoc,Konsultacinė veikla,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Pokalbiai su Žymančiumi dėl PPC,Ad hoc,Valdiklio paleidimas,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,Valdiklio išmuitinimas,Ad hoc,Valdiklio paleidimas,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Pokalbis su Enercon dėl modelių,Ad hoc,Valdiklio paleidimas,H,0.25,,100%,,,,2025-11-14
+Jonas,W47,Pokalbis su ryšininku dėl pagalbos,Ad hoc,Valdiklio paleidimas,H,0.5,,100%,,,,2025-11-14
+Jonas,W47,NDA su YUSO,Ad hoc,Valdiklio paleidimas,H,0.25,,100%,,,,2025-11-14
+Saulė,W47,Pielių BESS - TJ skaičiavimai baigti,Planned,Konsultacinė veikla,H,13,In Progress,50%,,Y,,2025-11-14
+Saulė,W47,Anykščių BESS - TJ skaičiavimai,Planned,Konsultacinė veikla,H,4,In Progress,50%,,Y,,2025-11-14
+Saulė,W47,NDA + nekonkuravomo sutarties susitikimai,Planned,Konsultacinė veikla,M,2,Done,100%,,,,2025-11-17
+Saulė,W47,Horizon tender planning ,Planned,Kurti inovacijas,M,2,In Progress,100%,recurring task,Y,,2025-11-17
+Saulė,W47,Litgrid tender,Ad hoc,Konsultacinė veikla,H,5,In Progress,100%,,,,2025-11-17
+Saulė,W47,Susitikims ir diskusija su SEL,Ad hoc,Kurti inovacijas,M,1.5,Done,100%,,,,2025-11-17
+Saulė,W47,Stiemo meet skaidrės,Ad hoc,Konsultacinė veikla,H,3,Done,100%,,,,2025-11-19
+Karolis,W47,Anykščių BESS - paruošta dokumentacija,Planned,Konsultacinė veikla,H,10,In Progress,100%,Realus darbo valandų skaičius buvo 40 val.,,,2026-03-19
+Karolis,W47,Pielių BESS - baigti visi skaičiavimai,Planned,Konsultacinė veikla,H,10,Not Started,0%,Tikslas 50% baigtumo W48,Y,,2026-03-19
+Matas,W47,Atnaujinti PSSE modelį,Planned,Valdiklio paleidimas,H,18,In Progress,35%,bus išskaidyta,Y,,2025-11-14
+Matas,W47,Patikrinti kodėl atsijunginėja Omicron,Ad hoc,Valdiklio paleidimas,L,1,Done,100%,,,,2025-11-20
+Matas,W47,Išsiųstas laiškas Žymančiui,Planned,Valdiklio paleidimas,M,1,Done,100%,,,,2025-11-14
+Matas,W47,Pielių BESS - atsakyta Litgrid į klausimus,Planned,Konsultacinė veikla,L,1,Done,100%,,,,2025-11-14
+Matas,W47,Patikrinimas SEL gridconnect matametinių biblioteka,Planned,Valdiklio paleidimas,H,4,Done,100%,,,,2025-11-17
+Matas,W47,Vičiūnų modelio perdarymas ant EDIS PPC modelio,Ad hoc,Valdiklio paleidimas,H,8,In Progress,100%,,,,2025-11-17
+Matas,W47,ACONE modelio 34 versijos sukompiliuota,Ad hoc,Valdiklio paleidimas,H,3,Done,100%,,,,2025-11-18
+Minvydas,W47,Baigta valdiklio bandymų programa,Planned,Valdiklio paleidimas,H,10,In Progress,0%,,Y,,2025-11-14
+Minvydas,W47,Pagreitintas signalų siuntimas,Planned,Valdiklio paleidimas,M,5,In Progress,25%,,Y,,2025-11-14
+Minvydas,W47,Baterijų valdymo algoritmas - baigtas/veikiantis,Planned,Valdiklio paleidimas,S,5,Done,100%,,,,2025-11-14
+Minvydas,W47,Viasolis naujų baterijų konfigūravimas,Ad hoc,Valdiklio paleidimas,M,12,In Progress,80%,,,,2025-11-21
+Minvydas,W47,Viasolis naujų baterijų WEB UI pasiekimo konfigūravimas,Ad hoc,Valdiklio paleidimas,M,4,Done,100%,,,,2025-11-21
+Minvydas,W47,D tipo pristatymui ruošiamos skaidrės ir atliekami testai,Ad hoc,Valdiklio paleidimas,M,4,Done,100%,,,,2025-11-21
+Minvydas,W47,Viasolio pristatymas D tipo valdiklio,Ad hoc,Valdiklio paleidimas,M,4,Done,100%,,,,2025-11-21
+Augustas,W47,Veikiantis grafikų atvaizdavimas į priekį,Planned,EMS,H,4,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Veikiantys Ignitis pelno skaičiavimai (Viasolis),Planned,EMS,H,2,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Veikiantys galios srautų grafikai,Planned,EMS,H,3,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Vienodos grafikų laiko ašys,Planned,EMS,M,2,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Veikianti reaktyvo kontrolė,Planned,EMS,H,3,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Paruoštas EMS (Vičiūnai),Planned,Valdiklio paleidimas,H,3,In Progress,15%,,Y,,2025-11-14
+Augustas,W47,Veikiantis sistemos grafiko atvaizdavimas (Vičiūnai),Planned,Valdiklio paleidimas,H,3,Not Started,0%,,Y,,2025-11-14
+Augustas,W47,Veikianti komunikacija su trijais inverteriais (Elinta),Ad hoc,EMS,H,2,Done,100%,,,,2025-11-17
+Augustas,W47,Veikiantis standartinis Raspberry image,Planned,EMS,H,10,Done,100%,,,,2025-11-17
+Augustas,W47,Duomenų laikmenos apsaugos variantų paieška,Ad hoc,EMS,H,2,Done,100%,,,,2025-11-19
+Augustas,W47,Paruoštas pirminis EMS funkcionalumų sąrašas,Ad hoc,EMS,H,2,Done,100%,,,,2025-11-20
+Augustas,W47,Veikiantys du nauji valdikliai (Viasolis),Planned,EMS,H,6,In Progress,40%,,,,2025-11-17
+Augustas,W47,Atstatytas ir veikiantis valdiklis (Viasolis),Ad hoc,EMS,H,4,Not Started,0%,,Y,,2025-11-17
+Audrius,W47,Baigta bandymų programos ataskaita,Planned,Konsultacinė veikla,H,10,,,,,,2025-11-14
+Audrius,W47,Vilniaus BESS - baigtas pirminis modelis,Planned,Konsultacinė veikla,H,10,,,,,,2025-11-14
+Audrius,W47,ACONE modelio 34 versija patikrinta,Ad hoc,Konsultacinė veikla,,1,,,,,,
+Mindaugas,W47,Ignitis bandymų programa 0.5,Planned,Konsultacinė veikla,H,10,Not Started,0%,,Y,,2025-11-14
+Mindaugas,W47,Ignitis kainų grafikai - veikiantys,Planned,EMS,H,6,Done,100%,,Y,,2025-11-14
+Mindaugas,W47,Sedos BESS - 33% modelio,Planned,Konsultacinė veikla,H,4,Done,100%,,Y,,2025-11-14
+,,,,,,,,,,,,
+Jonas,W48,Darbo sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,Not Started,0%,,,,2025-11-21
+Jonas,W48,Konfidencialumo susitarimo ir konfidencialios info sąrašo parengimas,Planned,Valdiklio paleidimas,H,4,Not Started,0%,,,,2025-11-21
+Jonas,W48,Rangos ir paslaugų sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,Not Started,0%,,,,2025-11-21
+Jonas,W48,Baigta Litgrid dujų elektrifikavimo metodika,Planned,Kurti inovacijas,M,12,In Progress,20%,,,,2025-11-21
+Jonas,W48,Parengtas detalus atnaujintas pasiūlymas Stiemo dėl Pielių HPCC,Planned,Valdiklio paleidimas,M,2,In Progress,50%,,,,2025-11-21
+Jonas,W48,PSS/E licencijos 2026 m.,Ad hoc,Valdiklio paleidimas,M,0.5,In Progress,0%,,,,
+Jonas,W48,Pralaidumų studijos derinimas,Ad hoc,Kurti inovacijas,H,1.5,Done,100%,,,,
+Jonas,W48,EMS kainodaros sudarymas,Ad hoc,EMS,H,2,Done,100%,,,,
+Jonas,W48,Darbo pokalbis su Elvinu,Ad hoc,Valdiklio paleidimas,H,1.5,Done,100%,,,,
+Jonas,W48,Susitikimas dėl kibernetinės saugos,Ad hoc,Valdiklio paleidimas,H,0.5,Done,100%,,,,
+Jonas,W48,Pokalbis su buhalterėmis dėl darbų efektyvininimo,Ad hoc,Valdiklio paleidimas,H,1.5,Done,100%,,,,
+Jonas,W48,Heatwall sutarties pasirašymas,Ad hoc,EMS,H,0.25,Done,100%,,,,
+Jonas,W48,Sutarties ir kainos derinimas su Acquila Capital dėl BESS matematinio modelio,Ad hoc,Valdiklio paleidimas,H,1.5,Done,100%,,,,
+Jonas,W48,Pasiūlymo atnaujinimas dėl Orlen studijos,Ad hoc,Konsultacinė veikla,H,0.25,Done,100%,,,,
+Jonas,W48,Pokalbiai su klientais / litgrid,Ad hoc,visi,H,8,Done,100%,,,,
+Jonas,W48,Pokalbiai su darbuotojais,Ad hoc,visi,H,2,Done,100%,,,,
+Matas,W48,EDIS PPC EDISPPCV103C modelis pabaigtas v33-v35,Planned,Valdiklio paleidimas,H,9,Done,100%,"Gali prireikti pakoreguoti modelį, priklausomai po Vičiūnų natūrinių bandymų",,,2025-11-24
+Matas,W48,EDIS PPC EDISPPCV103C modelis pabaigtas v36,Planned,Valdiklio paleidimas,H,11,Done,100%,,,,2025-11-24
+Matas,W48,First order lag bloko problemos sprendimas su PSSe,Ad hoc,Valdiklio paleidimas,M,4,Done,100%,Lauksim PSSe ataskymo,,,2025-11-26
+Matas,W48,EDIS PPC EDISPPCV103 modelis pabaigtas v33-v35,Planned,Valdiklio paleidimas,H,5,In Progress,60%,,Y,,2025-11-26
+Matas,W48,EDIS PPC EDISPPCV103 modelis pabaigtas v36,Planned,Valdiklio paleidimas,H,5,Not Started,0%,,Y,,2025-11-26
+Matas,W48,Vičiūnų WPP modelio patikrinimas ir studijos užbaigimas,Ad hoc,Valdiklio paleidimas,H,5,In Progress,60%,,Y,,2025-11-27
+Matas,W48,Sedos BESS modelio paruošimas Mindaugui,Ad hoc,Konsultacinė veikla,SH,4,Done,100%,,,,2025-11-28
+Matas,W48,Vičiūnų BESS modelio išsiuntimas Litgrid,Planned,Konsultacinė veikla,H,1,Done,100%,,,,2025-11-24
+Saulė,W48,Pielių BESS - TJ skaičiavimai baigti,Planned,Konsultacinė veikla,H,10,In Progress,100%,"resolution - modelis veikia blogai, užklausėme gamintojo",Y,,2025-11-24
+Saulė,W48,Anykščių BESS - TJ skaičiavimai baigti,Planned,Konsultacinė veikla,H,0,In Progress,0%,Vis dar negavom atsakymo į klausimus - keliasi į W49,Y,,2025-11-24
+Saulė,W48,Horizon tender planning ,Planned,Kurti inovacijas,M,7,In Progress,100%,,,,2025-11-24
+Saulė,W48,Peržiūrėti projektų statusą ir atrinkti kuriuos jau galima aktuoti ,Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-11-24
+Saulė,W48,Sutaisyti Tifec straipsnį,Ad hoc,Kurti inovacijas,H,9,In Progress,40%,,,,2025-11-27
+Saulė,W48,Atsakyti į Tifec straipsnio komentarus ,Ad hoc,Kurti inovacijas,H,1,In Progress,100%,,,,2025-11-27
+Karolis,W48,Validuotas Rezekne modelis pagal bandymus,Not Planned,Konsultacinė veikla,H,8,In Progress,75%,,Y,,2025-11-27
+Karolis,W48,Parengta Rezekne modelio validavimo ataskaita,Not Planned,Konsultacinė veikla,H,8,Not Started,0%,,Y,,2025-11-24
+Karolis,W48,"Suformuotas, parašytas ir išsiųstas laiškas dėl POD-P ir POD-Q implementacijos SMA modelyje (Anykščių BESS)",Planned,Konsultacinė veikla,M,1,Done,100%,Užtruko 0.25 valandos,,,2025-11-27
+Karolis,W48,Pielių BESS modelio sudarymas PF aplinkoje,Planned,Konsultacinė veikla,H,2,Not Started,0%,Dėl Rezeknės modelio validavimo šitie darbai persistumia dar į kitą savaitę,Y,,2025-11-27
+Karolis,W48,Pielių BESS - baigti visi skaičiavimai,Planned,Konsultacinė veikla,M,1,Not Started,0%,Dėl Rezeknės modelio validavimo šitie darbai persistumia dar į kitą savaitę,Y,,2025-11-27
+Mindaugas,W48,"Sedos BESS - 50 % modelio, generic, iki 2025-11-26",Planned,Konsultacinė veikla,H,10,In Progress,50%,,,,2025-11-24
+Mindaugas,W48,"Sedos BESS - 50->100% modelio, user-defined prijungti, iki 2025-11-28",Planned,Konsultacinė veikla,H,10,In Progress,10%,,,,2025-11-24
+Mindaugas,W48,"EMS - diagram list item view in the navbar, not edit, need fix link",Planned,EMS,H,4,Done,100%,,,,2025-11-24
+Mindaugas,W48,"EMS - diagram list item edit view in the navbar is crashing, need fix link, expected task duration: long, 10h",Planned,EMS,H,4,In Progress,0%,,,,2025-11-24
+Mindaugas,W48,"EMS - Sukeisti pavadinimus: Saldi svajone susikeitus su printIN, patikrinti visus",Planned,EMS,H,1,Done,100%,,,,2025-11-24
+Mindaugas,W48,EMS - admin users manage plants select pop up - need names in the list instead of old uids ,Planned,EMS,H,1,Done,100%,,,,2025-11-24
+Mindaugas,W48,EMS - naujas useris turi tuščią plant list,Ad hoc,EMS,H,2,Done,100%,,,,2025-11-25
+Mindaugas,W48,EMS - useriams gali priskirti specifinius plantus,Ad hoc,EMS,H,2,Done,100%,,,,2025-11-25
+Mindaugas,W48,"EMS - mūsų komandos admin useriai, turintys prieigą prie visų plantų",Ad hoc,EMS,H,2,Done,100%,,,,2025-11-25
+Mindaugas,W48,"EMS - pervadinti plants, koordinatės iš plants view to plant list",Planned,EMS,H,2,Done,100%,,,,2025-11-24
+Augustas,W48,Veikiantis grafikų atvaizdavimas į priekį (API dalis),Planned,EMS,H,4,Not Started,0%,,Y,,2025-11-14
+Augustas,W48,Paruoštas EMS (Vičiūnai),Planned,Valdiklio paleidimas,M,3,In Progress,15%,pertraukė viasolio ir elintos darbai,,,2025-11-14
+Augustas,W48,Veikiantis sistemos grafiko atvaizdavimas (Vičiūnai),Planned,Valdiklio paleidimas,M,3,Not Started,0%,,Y,,2025-11-14
+Augustas,W48,Veikiantys du nauji valdikliai (Viasolis),Planned,EMS,H,10,Done,100%,,,,2025-11-17
+Augustas,W48,Atstatytas ir veikiantis valdiklis (Viasolis),Ad hoc,EMS,H,4,Not Started,0%,"blocked, laukiam siuntos",Y,,2025-11-17
+Augustas,W48,Pratestuotas standard image įrašymas ant CM5,Planned,EMS,H,2,Not Started,0%,"blocked, laukiam siuntos",Y,,2025-11-24
+Augustas,W48,Veikiantys kainų grafikai naujuose objektuose (Viasolis),Planned,EMS,H,4,In Progress,50%,"Mano pirminė dalis atlikta, laukiu minvydo dalies",,,2025-11-24
+Augustas,W48,Feasability įsivertinimas padaryti testinę integraciją su Yuso iki jų vizito,Ad hoc,SCADA/OPT,H,2,In Progress,50%,"blocked, laukiu email iš Yuso",,,2025-11-27
+Augustas,W48,Pridėti vieną plantą prie monitoringo su bent kažkiek gyvų duomenų (Elinta),Planned,EMS,H,4,In Progress,15%,pertraukė grindos darbo timeline,,,2025-11-27
+Augustas,W48,Teisingai apskaičiuotas Grindos galios srautų grafikas,Ad hoc,EMS,M,3,In Progress,20%,dabar daroma,,,2025-11-27
+Minvydas,W48,Baigta valdiklio bandymų programa,Planned,Valdiklio paleidimas,H,10,Not Started,0%,,Y,,2025-11-24
+Minvydas,W48,Pagreitintas signalų siuntimas,Planned,Valdiklio paleidimas,M,5,In Progress,25%,,Y,,2025-11-24
+Minvydas,W48,Viasolis valdiklių duomenų nuskaitymas ir kaupimas duombazėje,Planned,EMS,M,5,Done,100%,,,,2025-11-24
+Minvydas,W48,Viasolis valdiklių tinklo apsaugos kodo implementavimas neviršyti leistinų ribojimų prijungimo taške,Planned,EMS,M,5,Done,100%,,,,2025-11-24
+Minvydas,W48,Veikiantis ir paleistas Viasolio valdiklių optimizavimas (baterijos valdymas) ,Planned,EMS,M,5,In Progress,35%,,,,2025-11-24
+Minvydas,W48,Atstatyti ištrintą aktyvo valdymo funkciją RTAC (Ištryniau netyčia ir neleido ctrl+z :) ),Ad hoc,Valdiklio paleidimas,M,1,Done,100%,,,,2025-11-25
+Minvydas,W48,Aiškinimasis su kiniečiais kodėl Viasolio baterija neišsikrauna reikiama galia,Ad hoc,EMS,M,2,In Progress,50%,,,,2025-11-24
+Minvydas,W48,Viasolio pagrindinio site'o debuginimas kodėl routeris neveikia,Ad hoc,EMS,M,1,Done,100%,,,,2025-11-25
+Minvydas,W48,"Žematiijos energija pirminis setupinimas, bendravimas su Viasolio instaleriais",Ad hoc,EMS,M,4,Done,100%,,,,2025-11-25
+Minvydas,W48,Mažų valdiklių statuso pranešimas per Teams API paruošimas ,Planned,EMS,S,4,In Progress,0%,,,,2025-11-28
+Minvydas,W48,Mažų valdiklių apkrovos ir saulės prognozavimas,Planned,EMS,S,4,In Progress,25%,,,,2025-11-28
+Audrius,W48,Meiluškių hibridinės saulės elektrinės Pmax studija,Planned,Konsultacinė veikla,H,14,Done,100%,,,,11/27/2025
+Audrius,W48,Acone PV validation report,Planned,Konsultacinė veikla,H,1,In Progress,95%,"AST turi klausimų dėl modelio veikimo, juos konsultuoju.",Y,,11/27/2025
+Audrius,W48,Vilnius BESS modelio testavimas,Planned,Konsultacinė veikla,H,1,Done,100%,,,,11/27/2025
+Audrius,W48,Rezekne PV test report,Planned,Konsultacinė veikla,H,3,Done,100%,,,,11/27/2025
+Audrius,W48,Kolegų konsultavimas,Ad hoc,Konsultacinė veikla,H,1,Done,100%,,,,11/27/2025
+,,,,,,,,,,,,
+Matas,W49,Sedos BESS modelio paruošimas Mindaugui,Ad hoc,Konsultacinė veikla,SH,2,Done,100%,,,,2025-12-01
+Matas,W49,EDIS PPC EDISPPCV103 modelis pabaigtas v33-v35,Planned,Valdiklio paleidimas,H,5,Done,100%,,,,2025-12-01
+Matas,W49,Vestas modelio debbuginimas,Ad hoc,Konsultacinė veikla,H,1,Done,100%,"Reikia gyvo meet'o su Litgrid, laukiam atsakymo",Y,,2025-12-01
+Matas,W49,Pagelbėta Audriui dėl Acone projekto EDISPPC,Ad hoc,Valdiklio paleidimas,M,1,Done,100%,,,,2025-12-01
+Matas,W49,EDIS PPC EDISPPCV103 modelis pabaigtas v36,Planned,Valdiklio paleidimas,H,11,Done,100%,Prailgino procesą PSSe skaičiavimo paklaidos naudojant LPF,,,2025-12-01
+Matas,W49,"Dvarviečių VE, sužiūrėti modelio trūkumus pagal atliktus natūrinius bandymus",Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-02
+Matas,W49,Tautvydo konsultavimas rengiant Dvarviečių natūrinių bandymų atasakaitą,Ad hoc,Konsultacinė veikla,H,1,Done,100%,,,,2025-12-03
+Matas,W49,EDIS PPC modelio kūrimas per PowerFacotry - paruošiamieji darbai,Planned,Valdiklio paleidimas,H,8,In Progress,100%,,,,2025-12-02
+Matas,W49,Vičiūnų WPP modelio patikrinimas ir studijos užbaigimas,Ad hoc,Valdiklio paleidimas,H,4,Done,100%,,,,2025-12-01
+Saulė,W49,Sutaisyti Tifec straipsnį,Planned,Kurti inovacijas,H,10,Done,100%,,,,2025-12-01
+Saulė,W49,[Pieliai BESS]  Power Factory PPC integruoti su PE inverterio modeliu ,Planned,Konsultacinė veikla,H,10,In Progress,40%,"Straipsnis užtruko ilgiau nei planuota - vietoj 6 valandų ~10, tad dalis PPC task nusikelia į kitą savaitę",Y,,2025-12-01
+Saulė,W49,[Pieliai BESS] 3ph TJ bandymas baigtas ant naujo PF+PPC modelio,Planned,Konsultacinė veikla,M,2,In Progress,0%,,Y,,2025-12-01
+Saulė,W49,Horizon projekto planavimas,Planned,Kurti inovacijas,M,3,Done,100%,,,,2025-12-01
+Karolis,W49,Validuotas Rezekne modelis pagal bandymus,Planned,Konsultacinė veikla,SH,7,Done,100%,Įtampos valdymo bandymas ir trumpieji jungimai,,,2025-12-05
+Karolis,W49,"Parengta Rezekne modelio validavimo ataskaita, modelio dokumentacija ir keičiamų parametrų dokumentas",Planned,Konsultacinė veikla,SH,32,Done,100%,,,,2025-12-05
+Karolis,W49,VMG SE projekto Huawei modelio patikrinimas PSSE V36 versijoje ir neveikimo identifikavimas,Not Planned,Konsultacinė veikla,M,0.25,Done,100%,,,,2025-12-05
+Karolis,W49,Žinių pasidalijimas su kolega apie DigSILENT PowerFactory programinį paketą,Not Planned,Konsultacinė veikla,S,1,Done,100%,,,,2025-12-05
+Karolis,W49,VMG SE padarytas PSS/E statinis ir dinaminis modelis,Not Planned,Konsultacinė veikla,H,2,In Progress,0%,,Y,,2025-12-05
+Augustas,W49,Veikiantis grafikų atvaizdavimas į priekį (API dalis),Planned,EMS,H,4,Not Started,0%,,,,2025-11-14
+Augustas,W49,Paruoštas EMS (Vičiūnai),Planned,Valdiklio paleidimas,M,3,In Progress,50%,,,,2025-11-14
+Augustas,W49,Veikiantis sistemos grafiko atvaizdavimas (Vičiūnai),Planned,Valdiklio paleidimas,M,3,Not Started,0%,,,,2025-11-14
+Augustas,W49,Atstatytas atvaizdavimas (Viasolis),Ad hoc,EMS,H,3,Done,100%,,,,2025-11-17
+Augustas,W49,Pratestuotas standard image įrašymas ant CM5,Planned,EMS,H,2,Done,100%,,,,2025-11-24
+Augustas,W49,Veikiantys kainų grafikai naujuose objektuose (Viasolis),Planned,EMS,H,4,In Progress,50%,"Mano pirminė dalis atlikta, laukiu minvydo dalies",,,2025-11-24
+Augustas,W49,Paruošta testinė integracija (YUSO),Ad hoc,SCADA/OPT,M,4,In Progress,15%,,,,2025-12-01
+Augustas,W49,Paruošti 3 rinkiniai RP5+SXT išvežimui (Viasolis),Ad hoc,EMS,H,3,In Progress,20%,,,,2025-12-02
+Augustas,W49,Paruoštas standard image v2 (Viasolis),Planned,EMS,S,2,Not Started,0%,,,,2025-12-02
+Augustas,W49,Veikiantis nordpool kainų modulis serveryje (debugginimas),Ad hoc,EMS,M,2,Not Started,0%,,,,2025-12-02
+Augustas,W49,Pridėti vieną plantą prie monitoringo su bent kažkiek gyvų duomenų (Elinta),Planned,EMS,H,4,In Progress,15%,,,,2025-11-27
+Mindaugas,W49,"Sedos BESS - modelis veikia, pradinė ataskaita išsiųsta 2025-12-02",Planned,Konsultacinė veikla,H,5,Done,100%,,,,2025-12-02
+Mindaugas,W49,Sedos BESS. Power Factors modelis. Galios ramping rate valdymas ir dažnio valdymas,Planned,Konsultacinė veikla,M,2,In Progress,0%,,,,2025-12-02
+Mindaugas,W49,Slėpti nuo User imbalance pasirinkimą,Planned,EMS,M,2,In Progress,100%,,,,2025-12-03
+Mindaugas,W49,"Slėpti nuo User All pasirinkimą, lieka tik Day-ahead ir Iginits",Planned,EMS,M,2,In Progress,100%,,,,2025-12-03
+Mindaugas,W49,V2 api route - pasiimti ir testuoti ant ems04,Planned,EMS,M,1,Done,100%,,,,2025-12-03
+Mindaugas,W49,V2 api route - pasiimti ir testuoti ant ems,Planned,EMS,M,3,In Progress,50%,,,,2025-12-03
+Mindaugas,W49,"Day-ahead režimo du grafikus jungiam į vieną. Lieka: vienas grafikas su battery power energy price ir battery saving ir total savings highlightas, 3 y ašys",Planned,EMS,M,2,In Progress,100%,,,,2025-12-03
+Mindaugas,W49,"Prediction grafikai keičiami į vieną, sudedam į krūvą",Planned,EMS,M,2,In Progress,100%,,,,2025-12-03
+Mindaugas,W49,"Testavimas: No User Imb, No All selection, Dayahead into 1, Prediction into 1.",Planned,EMS,M,2,In Progress,50%,,,,2025-12-03
+Audrius,W49,Acone PV validation report (modelio testavimas ir atsakymai į ATS komentarus dėl jo veikimo),Planned,Konsultacinė veikla,H,4,Done,100%,,,,2025-12-04
+Audrius,W49,Kolegų konsultavimas ir visoks brainstorminimas,Ad hoc,Konsultacinė veikla,H,8,Done,100%,,,,2025-12-04
+Audrius,W49,"Mokymasis skaičiuoti elektros kokybės parametrus (reikės Meiluškių BESS, kai atsiųs duomenis)",Planned,Konsultacinė veikla,M,8,In Progress,50%,,Y,,2025-12-04
+Jonas,W49,Darbo sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,In Progress,50%,,,,2025-11-21
+Jonas,W49,Konfidencialumo susitarimo ir konfidencialios info sąrašo parengimas,Planned,Valdiklio paleidimas,H,4,Done,100%,,,,2025-11-21
+Jonas,W49,Rangos ir paslaugų sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,Not Started,0%,,,,2025-11-21
+Jonas,W49,Baigta Litgrid dujų elektrifikavimo metodika,Planned,Kurti inovacijas,M,2,In Progress,20%,,,,2025-11-21
+Jonas,W49,Parengtas detalus atnaujintas pasiūlymas Stiemo dėl Pielių HPCC,Planned,Valdiklio paleidimas,M,2,Done,100%,,,,2025-11-21
+Jonas,W49,PSS/E licencijos 2026 m.,Ad hoc,Valdiklio paleidimas,M,0.5,In Progress,0%,,,,
+Jonas,W49,Vičiūnų projekto statuso atnaujinimas,Planned,Valdiklio paleidimas,M,2,Done,100%,,,,
+Jonas,W49,Pokalbiai/susirašinėjimai su Litgrid Atitikties Reikalavimais dėl įvairių projektų,Ad hoc,Valdiklio paleidimas,M,1,Done,100%,,,,
+Jonas,W49,Pokalbis su yuso,Planned,Valdiklio paleidimas,M,1,Done,100%,,,,
+Jonas,W49,Pokalbis su yuso (virš numatyto laiko),Ad hoc,Valdiklio paleidimas,M,1.5,Done,100%,,,,
+Jonas,W49,Pokalbis dėl kibernetinės saugos reikalavimų > 100 kW elektrinėms,Ad hoc,Valdiklio paleidimas,M,0.75,Done,100%,,,,
+Jonas,W49,Pokalbis su Energix dėl techninių konsultacijų,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Strateginių klausimų aptarimas,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Susirašinėjimas su VDA ir duomenų ežero testavimas,Ad hoc,Valdiklio paleidimas,M,1,Done,100%,,,,
+Jonas,W49,Pokalbiai su Ignitis dėl Dvarviečių VE,Ad hoc,Valdiklio paleidimas,M,2,Done,100%,,,,
+Jonas,W49,Sutarties su Olana taisymas,Ad hoc,Valdiklio paleidimas,M,0,Done,100%,,,,
+Jonas,W49,Sutarties su Utilitas wind taisymas,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Connecto konsultacijos dėl Grid Compliance,Ad hoc,Valdiklio paleidimas,M,2.5,Done,100%,,,,
+Jonas,W49,Pokalbis su Tetas,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Užsakovo konsultacijos dėl Sedos BESS,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Pokalbis su VMG dėl projekto,Ad hoc,Valdiklio paleidimas,M,0.25,Done,100%,,,,
+Jonas,W49,sutarties derinimas dėl vertimo,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Energy cells konsultacijos dėl SOH,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Pokalbis su Aivaru dėl projektų,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Pokalbis dėl Litgrid pasiūlymo dėl virtualios relinės aspaugos studijos,Ad hoc,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,Pokalbis su Litgrid dėl pralaidumų studijos,Ad hoc,Valdiklio paleidimas,M,1,Done,100%,,,,
+Jonas,W49,Buhalterija,Planned,Valdiklio paleidimas,M,1.5,Done,100%,,,,
+Jonas,W49,Pokalbis su Danu dėl Krustpils,Ad hoc,Valdiklio paleidimas,M,0.25,Done,100%,,,,
+Jonas,W49,Straipsnio klausimai,Planned,Valdiklio paleidimas,M,0.5,Done,100%,,,,
+Jonas,W49,kiti ad hoc darbai,Ad hoc,Valdiklio paleidimas,M,8,Done,100%,,,,
+Minvydas,W49,Baigta valdiklio bandymų programa,Planned,Valdiklio paleidimas,H,10,Not Started,0%,,Y,,2025-12-05
+Minvydas,W49,Pagreitintas signalų siuntimas,Planned,Valdiklio paleidimas,M,5,In Progress,25%,,Y,,2025-12-05
+Minvydas,W49,Mažųjų valdiklių optimizavimo pipeline išdirbimas,Planned,EMS,M,10,Done,100%,,,,2025-12-05
+Minvydas,W49,Viasolio objektų konfigūravimas,Ad hoc,EMS,M,3,Done,100%,,,,2025-12-05
+Minvydas,W49,Yuso integracija baterijos valdymas,Planned,Valdiklio paleidimas,M,5,In Progress,10%,,,,2025-12-05
+Minvydas,W49,Susisiekti su Prognozavimo tiekėjais,Planned,EMS,SH,2,In Progress,25%,,Y,,2025-12-05
+Minvydas,W49,Atgaivinti kainų prognozavimo modelius,Planned,EMS,SH,10,Not Started,,,Y,,2025-12-05
+Minvydas,W49,,,,,,,,,,,2025-12-05
+,,,,,,,,,,,,
+Mindaugas,W50,"Sedos BESS. Power Factors modelis. Originali testų programa, pagal ją padaryti.",Planned,Konsultacinė veikla,M,2,In Progress,0%,,Y,,2025-12-08
+Mindaugas,W50,Load Solar Prediction,Planned,EMS,H,2,In Progress,100%,,,,2025-12-08
+Mindaugas,W50,"SIM Telia 10 vnt, neskubu bet geriau greiciau",Planned,Konsultacinė veikla,M,0.5,In Progress,100%,,,,2025-12-08
+Mindaugas,W50,"SIM Telia 2 vnt, skubiai, vizitas MOLAS salone",Planned,Konsultacinė veikla,M,1,In Progress,100%,,,,2025-12-11
+Mindaugas,W50,Telia - įgaliojimas,Planned,Konsultacinė veikla,M,1,In Progress,100%,,,,2025-12-11
+Mindaugas,W50,Events,Planned,EMS,M,0.5,Done,100%,,,,2025-12-08
+Mindaugas,W50,"Batt savings, price color, total savings, aggregated pagal v2 struktūrą, 00-24 !!!",Planned,EMS,H,4,In Progress,100%,,,,2025-12-08
+Mindaugas,W50,"P mapping, Q mapping",Planned,EMS,H,2,In Progress,100%,,,,2025-12-09
+Mindaugas,W50,"v2 plants, VIasolis plant - SCADA mygtukas",Planned,EMS,H,2,In Progress,100%,,,,2025-12-09
+Mindaugas,W50,"Customers, ne ta info, Karolinos pastaba",Planned,EMS,L,0.5,In Progress,100%,,,,2025-12-09
+Mindaugas,W50,"viena y ašis, v1 plants sukeisti su v2 plants , plant priskyrimas pasikeicia, Karolinos useriai nauji",Planned,EMS,H,5,In Progress,100%,,,,2025-12-09
+Mindaugas,W50,"Pervadinti - Elinta 001 Plant, Zemaitijos Energija Plant, LT raidės visuose pavadinimuose, Vičiūnai plant, Sukurti organizacija Elinta, userį Nojus Jeskevičius, prijungti.",Planned,EMS,M,2,In Progress,100%,,,,2025-12-11
+Saulė,W50,[Pieliai BESS]  Power Factory PPC integruoti su PE inverterio modeliu ,Planned,Konsultacinė veikla,H,10,Done,100%,,,,2025-12-08
+Saulė,W50,[Pieliai BESS] 3ph TJ bandymas baigtas ant naujo PF+PPC modelio,Planned,Konsultacinė veikla,M,2,In Progress,90%,,,,2025-12-08
+Saulė,W50,[Pieliai BESS] 2ph ir 1 ph TJ bandymas baigtas ant naujo PF+PPC modelio,Planned,Konsultacinė veikla,M,4,Not Started,0%,,Y,,2025-12-08
+Saulė,W50,[Pieliai BESS] reaktyvo bandymas baigtas ant naujo PF+PPC modelio,Planned,Konsultacinė veikla,M,3,Not Started,0%,,Y,,2025-12-08
+Saulė,W50,[Litgrid RAA virtualizacijos tender] meet su Suomiais ir dokumentų angliškai paruošimas ,Ad hoc,Kurti inovacijas,M,2.5,Done,100%,,,,2025-12-11
+Saulė,W50,Valdiklio rangos ir priežiūros sutarčių peržiūra,Planned,Valdiklio paleidimas,M,3.5,Done,100%,,,,2025-12-08
+Saulė,W50,[Anykščai BESS] 3ph TJ skaičiavimai baigti,Planned,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-11
+Saulė,W50,[Anykščai BESS] Reaktyvo bandymai (3 testai) baigti,Planned,Konsultacinė veikla,M,4,Done,100%,,,,2025-12-11
+Saulė,W50,[Laflora] Pirminis modelio patikrinimas,Ad hoc,Konsultacinė veikla,M,1.5,Done,100%,,,,2025-12-11
+Karolis,W50,VMG SE padarytas PSS/E statinis ir dinaminis modelis,Planned,Konsultacinė veikla,H,4,Done,100%,,,,2025-12-09
+Karolis,W50,Atliktos VMG SE dinaminio modelio simuliciajos pirminiam modeliui,Planned,Konsultacinė veikla,H,6,Done,100%,Laukiama inverterio modelio,,,2025-12-09
+Karolis,W50,Padaryta VMG SE dinaminio ataskaita ir modelio dokumentacija,Planned,Konsultacinė veikla,H,9,In Progress,60%,"Be atliktų dinaminių simuliacijų nėra galimybės paruoši ataskaitos su skaičiavimais, tas pats ir su dokumentacija. Kolkas atliekami standartiniai ataskaitos rengimo darbai (aprašomas statinis modelis,statinis modelis lyginamas su agreguotu, surašomi naudoti duomenys ir pan.), Kitas 50% bus atlikta, kai bus atlikti skaičiavimai su inverterio modeliu",Y,,2025-12-09
+Karolis,W50,Žinių pasidalijimas su kolega apie DigSILENT PowerFactory programinį paketą,Planned,Konsultacinė veikla,S,1,Done,100%,,,,2025-12-12
+Minvydas,W50,Baigta valdiklio bandymų programa,Planned,Valdiklio paleidimas,H,10,Not Started,0%,,,,2025-12-08
+Minvydas,W50,Pagreitintas signalų siuntimas,Planned,Valdiklio paleidimas,M,5,In Progress,25%,,,,2025-12-08
+Minvydas,W50,Yuso integracija baterijos valdymas,Planned,Valdiklio paleidimas,M,10,In Progress,100%,,,,2025-12-08
+Minvydas,W50,Susisiekti su Prognozavimo tiekėjais,Planned,Valdiklio paleidimas,H,2,In Progress,25%,,,,2025-12-08
+Minvydas,W50,Atgaivinti kainų prognozavimo modelius,Planned,Valdiklio paleidimas,H,10,Not Started,0%,,,,2025-12-08
+Minvydas,W50,SSL sertifikatų paruošimas hmi.edislab.lt nuorodai,Ad hoc,EMS,M,3,Done,100%,,,,2025-12-08
+Minvydas,W50,Viasolio Site'ų debuginimas (neveikė optimizavimas),Ad hoc,EMS,M,2,Done,100%,,,,2025-12-08
+Minvydas,W50,Meet'as su Jonu dėl optimizavimo tobulinimo,Ad hoc,EMS,M,1,Done,100%,,,,2025-12-08
+Matas,W50,EDIS PPC modelio kūrimas per PowerFacotry,Planned,Valdiklio paleidimas,H,20,Done,100%,,Y,,2025-12-08
+Matas,W50,Susitikimas su Litgrid dėl WAO matematinio modelio,Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-09
+Matas,W50,EDISPPCV1.02 atnaujinimas Acone parkui,Ad hoc,Konsultacinė veikla,M,1,Done,99%,,,,2025-12-12
+Matas,W50,Lijono duomenų sužiūrėjimas,Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-09
+Jonas,W50,Darbo sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,In Progress,50%,,,,
+Jonas,W50,Rangos ir paslaugų sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,Not Started,25%,,,,
+Jonas,W50,Baigta Litgrid dujų elektrifikavimo metodika,Planned,Kurti inovacijas,H,20,In Progress,20%,,,,
+Jonas,W50,PSS/E licencijos 2026 m.,Ad hoc,Valdiklio paleidimas,M,0.5,In Progress,0%,,,,
+Jonas,W50,Gyvas susitikimas su vičiūnais,Ad hoc,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Jonas,W50,Susitikimas su Litgrid dėl WAO matematinio modelio,Ad hoc,Konsultacinė veikla,M,1,In Progress,100%,,,,
+Jonas,W50,Susitikimas ir komunikacija su Energix dėl technical-due diligence,Ad hoc,Konsultacinė veikla,M,1,In Progress,50%,,,,
+Jonas,W50,Komunikacija su Viasolis,Ad hoc,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Jonas,W50,Komunikacija su Utilitas dėl konsultacijų,Ad hoc,Konsultacinė veikla,M,0.5,In Progress,50%,,,,
+Jonas,W50,Duomenų suderinimas su Stiemo dėl Lijono BESS,Ad hoc,Konsultacinė veikla,M,0.25,In Progress,100%,,,,
+Jonas,W50,Duomenų suderinimas su Latvenergo dėl Laflora WF,Ad hoc,Konsultacinė veikla,M,0.25,In Progress,100%,,,,
+Jonas,W50,Susitikimas su Latvenergo ir PPC gamintoju dėl Laflora WF,Ad hoc,Konsultacinė veikla,M,1,In Progress,100%,,,,
+Jonas,W50,Susitikimas su MET,Planned,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Jonas,W50,Susitikimas su Antanu iš elektros zonos,Ad hoc,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Jonas,W50,Strateginis susitikimas dėl EMS,Ad hoc,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Jonas,W50,Telia SIM kortelės / įgaliojimas,Ad hoc,Valdiklio paleidimas,M,0.5,In Progress,50%,,,,
+Jonas,W50,Kita komunikacija dėl projektų,Ad hoc,Valdiklio paleidimas,M,1,In Progress,100%,,,,
+Audrius,W50,Elektros kokybės parametrų skaičiavimo metodika,Planned,Konsultacinė veikla,M,4,Done,100%,,,,2025-12-09
+Audrius,W50,Meiluškių BESS+PV modelio korekcija elektros kokybės studijai,Planned,Konsultacinė veikla,M,4,In Progress,25%,,,,2025-12-09
+Audrius,W50,Susirašinįėjimas/konsultacija su AST dėl Acone modelio,Ad hoc,Konsultacinė veikla,H,1,Done,100%,,,,2025-12-09
+Audrius,W50,"Vēja elektrostaciju parka ""Laflora"" PSSE modelis",Ad hoc,Konsultacinė veikla,M,11,Not Started,0%,,,,2025-12-09
+Audrius,W50,Acone modelio testavimas pagal AST pastabas,Ad hoc,Konsultacinė veikla,H,5,In Progress,20%,,,,2025-12-11
+Augustas,W50,Veikiantis grafikų atvaizdavimas į priekį (API dalis),Planned,EMS,H,4,Done,100%,,,,2025-11-14
+Augustas,W50,Paruoštas EMS (Vičiūnai),Planned,Valdiklio paleidimas,M,3,In Progress,65%,,,,2025-11-14
+Augustas,W50,Veikiantis sistemos grafiko atvaizdavimas (Vičiūnai),Planned,Valdiklio paleidimas,M,3,Not Started,0%,,,,2025-11-14
+Augustas,W50,Veikiantys kainų grafikai naujuose objektuose (Viasolis),Planned,EMS,H,2,Done,100%,,,,2025-11-24
+Augustas,W50,Paruošta testinė integracija (YUSO),Ad hoc,SCADA/OPT,M,4,In Progress,25%,,,,2025-12-01
+Augustas,W50,Veikiantis nordpool kainų modulis serveryje (debugginimas),Ad hoc,EMS,M,2,Done,100%,"Quick fixas, nedariau gilaus debugo",,,2025-12-02
+Augustas,W50,Pridėti vieną plantą prie monitoringo su bent kažkiek gyvų duomenų (Elinta),Planned,EMS,H,6,Done,100%,,,,2025-11-27
+Augustas,W50,Per API gaunami baterijų plano duomenys (nordpool arbitražo),Planned,EMS,H,2,Done,100%,,,,2025-12-08
+Augustas,W50,Paruoštas Nuke.sh partnerystės nutraukimo programinis kodas (Viasolis),Ad hoc,EMS,SSH,0.25,Done,100%,,,,2025-12-08
+Augustas,W50,Pakeistas MQTT server-side pipeline į event queue + worker pool (debugginimas),Planned,EMS,M,2,Done,100%,,,,2025-12-08
+Augustas,W50,Pakeistas MQTT pipeline iš QoS 0 į QoS 1 (debugginimas),Ad Hoc,EMS,H,2,Done,100%,,,,2025-12-10
+Augustas,W50,Sugrąžinti trūkinėje duomenys pastarųjų 24h (debugginimas),Ad Hoc,EMS,H,2,Done,100%,,,,2025-12-10
+Augustas,W50,Paruošti 2 RPi5+SXT komplektai (Viasolis),Ad Hoc,EMS,H,2,Done,100%,,,,2025-12-11
+Augustas,W50,Paruoštas standarad image v2 (Viasolis),Ad Hoc,EMS,M,2,Done,100%,,,,2025-12-11
+Augustas,W50,Pridėti du nauji event tipai - D002/3,Ad Hoc,EMS,SSH,1,Done,100%,,,,2025-12-12
+Augustas,W50,Paruoštas pirminis RTAC duomenų nuskaitymas per RPi,Planned,SCADA/OPT,H,1,Done,100%,,,,2025-12-12
+,,,,,,,,,,,,
+Matas,W51,EDIS PPC modelio kūrimas per PowerFacotry,Planned,Valdiklio paleidimas,H,14,In Progress,100%,,,,2025-12-15
+Matas,W51,EDISPPCV1.02 koregavimas Acone parkui,Ad hoc,Konsultacinė veikla,H,3,Done,100%,,,,2025-12-16
+Matas,W51,Vičiūnai BESS v36 modelio klausimas,Ad hoc,Konsultacinė veikla,H,0.25,Done,100%,,,,2025-12-17
+Matas,W51,Antrojo RTAC paruošimas darbui,Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-17
+Matas ,W51,AWO tikrinimas,Ad hoc,Konsultacinė veikla,M,1,Done,100%,,,,2025-12-17
+Matas ,W51,AWO FSM+LFSM testų perdarymas + išsiuntimas Litgrid,Ad hoc,Konsultacinė veikla,SH,4,In Progress,80%,"Nusikėlė, dėl natūrinių bandymų neatitikimų",Y,,2025-12-19
+Matas,W51,Sapnagių WPP klausimų atsakymas Litgrid,Ad hoc,Konsultacinė veikla,SH,4,Done,100%,Užtruko kur kas ilgiau nei manyta,,,2025-12-15
+Karolis,W51,Rezekne SPP modelio klausimų atsakymas AST,Ad hoc,Konsultacinė veikla,SH,2,In Progress,100%,,,,2025-12-15
+Karolis,W51,Rezekne SPP modelio atliktos papildomos simuliacijos AST prašymu,Ad hoc,Konsultacinė veikla,SH,6,In Progress,100%,,,,2025-12-15
+Karolis,W51,Rezekne SPP modelio dokumentacijos atnaujinimas pagal pakeitimus,Ad hoc,Konsultacinė veikla,SH,7,In Progress,100%,,,,2025-12-15
+Karolis,W51,Pabaigta VMG SE dinaminio ataskaita ir modelio dokumentacija,Planned,Konsultacinė veikla,H,5,In Progress,60%,,,,2025-12-15
+Mindaugas,W51,"Sedos BESS. Power Factors modelis. Originali testų programa, pagal ją padaryti.",Planned,Konsultacinė veikla,M,2,In Progress,50%,,Y,,2025-12-15
+Mindaugas,W51,"EMS - PDF, XLSX, CSV eksportas, toaster",Planned,EMS,M,5,In Progress,80%,"PDF neformuoja image + datatable, lūžta.",Y,,2025-12-15
+Mindaugas,W51,EMS - db backup solution,Planned,EMS,H,2,Done,100%,,,,2025-12-17
+Mindaugas,W51,"Telia IoT sprendimai verslui, gauti pasiūlymą. Tele2 pasiūlymai, Bitė pasiūlymai",Planned,EMS,M,1,Done,100%,"Teledema dar variantas, kitai savaitei",Y,,2025-12-15
+Mindaugas,W51,"EMS - automatinis ataskaitų atsisiuntimas, alerts - SMS, email siuntimas, db by email, testuoti sprendimus: brevo.com vs savo email serveris vs ms365(ar yra toks sprendimas?) kt.",Planned,EMS,M,20,Not Started,0%,"Kitai savaitei, klientų pageidavimas kaip ir ateičiai darbas, research yra daromas šiuo metu",Y,,2025-12-18
+Mindaugas,W51,EMS - language theme switcher inline with user dropdown,Planned,EMS,M,1,In Progress,100%,Nice to have,,,2025-12-19
+Mindaugas,W51,EMS - translations available to staff,Planned,EMS,M,2,In Progress,100%,,,,2025-12-19
+Mindaugas,W51,Augusto sukurti darbai,Planned,EMS,M,8,In Progress,100%,"Elinta 002 Plant ir telia numeriai buvo, tai padaryta, o kitos valandos antrai ir trečiai užduočiai nuėjo",,,2025-12-15
+Augustas,W51,Paruoštas EMS (Vičiūnai),Planned,Valdiklio paleidimas,M,3,In Progress,80%,"Reikia persižiūrėti, kokių ten dalykų jame tikrai reikia",,,2025-11-14
+Augustas,W51,Veikiantis sistemos grafiko atvaizdavimas (Vičiūnai),Planned,Valdiklio paleidimas,M,3,Done,100%,,,,2025-11-14
+Augustas,W51,Paruošta testinė integracija (YUSO),Ad hoc,SCADA/OPT,M,4,In Progress,60%,Laukiama atsako iš Yuso,,,2025-12-01
+Augustas,W51,Paruoštas kontrolės kodas ant Solinteg inverterio (Elinta),Planned,EMS,M,3,Done,100%,,,,2025-12-15
+Augustas,W51,Paruoštas NFQ klausimynas,Planned,EMS,H,1.5,Not Started,0%,,,,2025-12-15
+Saulė,W51,[Anykščai BESS] TJ 3ph skaičiavimai baigti (discharging mode),Planned,Konsultacinė veikla,SH,1,In Progress,0%,,,,
+Saulė,W51,[Anykščai BESS] TJ 2ph skaičiavimai baigti (both modes),Planned,Konsultacinė veikla,SH,1.5,In Progress,50%,,,,
+Saulė,W51,[Anykščai BESS] TJ 1ph skaičiavimai baigti (both modes),Planned,Konsultacinė veikla,SH,1.5,In Progress,50%,,,,
+Saulė,W51,[Anykščai BESS] V skaičiavimai baigti,Planned,Konsultacinė veikla,SH,5,Done,100%,,,,
+Saulė,W51,[Anykščai BESS] f skaičiavimai baigti,Planned,Konsultacinė veikla,SH,5,In Progress,0%,,,,
+Saulė,W51,"[Anykščai BESS] ataskaita (rezultatų grafikai, dokumentacija)",Planned,Konsultacinė veikla,H,15,In Progress,20%,,,,
+Saulė,W51,[Anykščai BESS] Q skaičiavimai baigti,Planned,Konsultacinė veikla,SH,5,Done,100%,,,,
+Saulė,W51,Tifec straipsnio korekcijos,Planned,Konsultacinė veikla,M,3,In Progress,70%,,,,
+Minvydas,W51,Baigta valdiklio bandymų programa,Planned,Valdiklio paleidimas,H,10,In Progress,90%,,,,2025-12-15
+Minvydas,W51,Pagreitintas signalų siuntimas,Planned,Valdiklio paleidimas,M,5,In Progress,25%,,,,2025-12-15
+Minvydas,W51,Susisiekti su Prognozavimo tiekėjais,Planned,Valdiklio paleidimas,H,2,In Progress,100%,,,,2025-12-15
+Minvydas,W51,Atgaivinti kainų prognozavimo modelius,Planned,Valdiklio paleidimas,H,10,Not Started,0%,,,,2025-12-15
+Minvydas,W51,Viasolio site'ų baterijos pasiekimo sukonfigūravimas,Planned,EMS,H,2,Finished,100%,,,,2025-12-15
+Minvydas,W51,Paleisti optimizavimą Elintos site'e,Ad hoc,EMS,H,0.5,Finished,100%,,,,2025-12-15
+Minvydas,W51,API Dokumentacijos ruošimas ir kontaktavimas su Igničiu,Ad hoc,EMS,H,1,Finished,100%,,,,2025-12-18
+Minvydas,W51,MQTT/JSON RTAC'o debuginimas,Ad hoc,Valdiklio paleidimas,H,4,Finished,100%,,,,2025-12-15
+Jonas,W51,Darbo sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,In Progress,50%,,,,
+Jonas,W51,Rangos ir paslaugų sutarties šablono parengimas su Sorainen,Planned,Valdiklio paleidimas,H,2,In Progress,25%,,,,
+Jonas,W51,Baigta Litgrid dujų elektrifikavimo metodika,Planned,Kurti inovacijas,H,20,In Progress,70%,,,,
+Jonas,W51,PSS/E licencijos 2026 m.,Ad hoc,Valdiklio paleidimas,H,0.5,In Progress,25%,,,,
+Jonas,W51,Savaitinis susitikimas su vičiūnais ir MoM,Ad hoc,Valdiklio paleidimas,H,1,In Progress,100%,,,,
+Jonas,W51,Komunikacija su Utilitas dėl konsultacijų,Ad hoc,Konsultacinė veikla,H,2,In Progress,100%,,,,
+Jonas,W51,Stiemo pasiūlymo atnaujinimas,Ad hoc,Valdiklio paleidimas,H,2,In Progress,100%,,,,
+Jonas,W51,Susitikimas su MET dėl Heatwall,Ad hoc,Kurti inovacijas,H,1,In Progress,100%,,,,
+Jonas,W51,Sutarties derinimas su GG dėl Jurbarko VE bandymų ataskaitų,Ad hoc,Konsultacinė veikla,H,1,In Progress,100%,,,,
+Jonas,W51,Susitikimas dėl Aruno I BESS matematinio modelio,Ad hoc,Konsultacinė veikla,H,1,In Progress,100%,,,,
+Jonas,W51,Susitikimas su Elinta dėl ,Ad hoc,Kurti inovacijas,H,1,In Progress,100%,,,,
+Jonas,W51,Litgrid studijos tarpinių rezultatų pristatymas,Ad hoc,Kurti inovacijas,H,1.5,In Progress,100%,,,,
+Jonas,W51,Darbo pokalbis su Ignu,Ad hoc,Kurti inovacijas,H,0.5,In Progress,100%,,,,
+Jonas,W51,Pietūs su Huawei,Ad hoc,Kurti inovacijas,H,1,In Progress,100%,,,,
+Jonas,W51,Kita komunikacija dėl projektų,Ad hoc,Valdiklio paleidimas,M,3.5,In Progress,100%,,,,
+Audrius,W51,Acone modelio testavimas pagal AST pastabas,Planned,Konsultacinė veikla,H,16,In Progress,80%,,,,12/18/2025
+Audrius,W51,Meiluškių BESS+PV modelio korekcija elektros kokybės studijai,Planned,Konsultacinė veikla,M,4,In Progress,90%,Užbaigimui laukiu duomenų apie SMA inverterį.,,,12/18/2025
+Audrius,W51,"Vēja elektrostaciju parka ""Laflora"" PSSE modelis",Planned,Konsultacinė veikla,M,0,Not Started,0%,,,,12/18/2025
+Audrius,W51,Tume PV (LV) parko modelis,Ad hoc,Konsultacinė veikla,M,0,Not Started,0%,,,,12/18/2025
+,,,,,,,,,,,,
+Matas,W52,EDIS PPC modelio kūrimas per PowerFacotry,Planned,Valdiklio paleidimas,H,8,In Progress,100%,,,,2025-12-15
+Matas ,W52,AWO FSM+LFSM testų perdarymas + išsiuntimas Litgrid,Ad hoc,Konsultacinė veikla,SH,1.5,In Progress,100%,,,,2025-12-19
+Karolis,W52,Atsakyti Rezekne modelio klausimai,Not Planned,Konsultacinė veikla,SH,1,Done,100%,,,,2025-12-22
+Karolis,W52,Padarytas Viciunu projekto natūrinių bandymu vidinis excel failas,Ad hoc,Valdiklio paleidimas,SH,1,Done,100%,,,,2025-12-22
+Karolis,W52,Pabaigta VMG SE dinaminio ataskaita ir modelio dokumentacija,Planned,Konsultacinė veikla,H,8,Done,100%,,,,2025-12-22
+Audrius,W52,Acone PV projekto pabaigimas,Planned,Konsultacinė veikla,H,,Done,100%,,,,
+Audrius,W52,Tume PV (LV) parko modelis,Planned,Konsultacinė veikla,M,,In Progress,25%,Parengiau statinį modelį,,,
+Jonas,W52,PSS/E licencijos 2026 m.,Planned,Valdiklio paleidimas,H,1,Completed,50%,,,,
+Jonas,W52,Gyvas susitikimas su viči dėl strateginių bendradarbiavimo klausimų,Planned,Valdiklio paleidimas,H,2,Completed,100%,,,,
+Jonas,W52,Komunikacija su Utilitas dėl konsultacijų,Planned,Konsultacinė veikla,H,2,Completed,100%,,,,
+Jonas,W52,Duomenų surinkimas GG Jurbarko VE bandymų ataskaitai,Planned,Konsultacinė veikla,H,1,Completed,100%,,,,
+Jonas,W52,Susirinkimas su Elinta dėl kainodaros,Planned,Valdiklio paleidimas,H,1,Completed,100%,,,,
+Jonas,W52,Susirinkimas su AST dėl hibridinio projekto Latvijoje,Planned,Konsultacinė veikla,H,1,Completed,100%,,,,
+Jonas,W52,MM komandos darbų plano sudarymas 2026 m.,Planned,Konsultacinė veikla,H,1,Completed,100%,,,,
+Jonas,W52,Komunikacija su Viasolis,Ad hoc,Valdiklio paleidimas,H,4,Completed,100%,,,,
+Jonas,W52,Kita komunikacija dėl projektų,Ad hoc,Konsultacinė veikla,M,7,In Progress,100%,,,,
+,,,,,,,,,,,,
