@@ -53,6 +53,63 @@ const columns = computed(() =>
 
 const selectedProjectId = computed(() => props.selectedProject?.id ?? null);
 
+const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const startOfWeek = (date) => {
+  const normalized = normalizeDate(date);
+  const dayIndex = (normalized.getDay() + 6) % 7;
+  normalized.setDate(normalized.getDate() - dayIndex);
+  return normalized;
+};
+
+const addDays = (date, days) => {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
+
+const today = normalizeDate(new Date());
+const currentWeekStart = startOfWeek(today);
+const displayedWeekStart = ref(new Date(currentWeekStart));
+
+const isCurrentWeekShown = computed(() => displayedWeekStart.value.getTime() === currentWeekStart.getTime());
+
+const weekDays = computed(() =>
+  Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(displayedWeekStart.value, index);
+    const dayOfWeek = date.getDay();
+
+    return {
+      iso: date.toISOString().slice(0, 10),
+      weekday: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+      month: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date),
+      dayNumber: date.getDate(),
+      isToday: date.getTime() === today.getTime(),
+      isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+    };
+  })
+);
+
+const weekRangeLabel = computed(() => {
+  const weekStart = displayedWeekStart.value;
+  const weekEnd = addDays(weekStart, 6);
+  const startFormatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(weekStart);
+  const endFormatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(weekEnd);
+  return `${startFormatted} - ${endFormatted}`;
+});
+
+const goToPreviousWeek = () => {
+  displayedWeekStart.value = addDays(displayedWeekStart.value, -7);
+};
+
+const goToNextWeek = () => {
+  displayedWeekStart.value = addDays(displayedWeekStart.value, 7);
+};
+
+const goToCurrentWeek = () => {
+  displayedWeekStart.value = new Date(currentWeekStart);
+};
+
 const createForm = useForm({
   project_id: selectedProjectId.value,
   title: '',
@@ -362,6 +419,66 @@ const deleteProject = (projectId) => {
 
     <div class="py-8">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+              title="Previous week"
+              @click="goToPreviousWeek"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M12.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+
+            <div class="text-center">
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week View</p>
+              <p class="text-base font-semibold text-gray-900">{{ weekRangeLabel }}</p>
+            </div>
+
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+              title="Next week"
+              @click="goToNextWeek"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7.293 4.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 11-1.414-1.414L11.586 10 7.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-4 overflow-x-auto">
+            <div class="grid min-w-[640px] grid-cols-7 gap-2">
+              <div
+                v-for="day in weekDays"
+                :key="day.iso"
+                class="rounded-lg border px-3 py-2 text-center"
+                :class="day.isToday && isCurrentWeekShown
+                  ? 'border-blue-500 bg-blue-50 text-blue-900'
+                  : day.isWeekend
+                    ? 'border-red-200 bg-red-50 text-red-800'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
+              >
+                <p class="text-[11px] font-semibold uppercase tracking-wide">{{ day.weekday }}</p>
+                <p class="mt-1 text-lg font-semibold leading-none">{{ day.dayNumber }}</p>
+                <p class="mt-1 text-[11px] uppercase tracking-wide">{{ day.month }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 flex justify-end" v-if="!isCurrentWeekShown">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 transition hover:bg-gray-50"
+              @click="goToCurrentWeek"
+            >
+              Back to current week
+            </button>
+          </div>
+        </div>
+
         <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div class="mb-5 border-b border-gray-100 pb-4">
             <div class="flex items-center gap-2">
