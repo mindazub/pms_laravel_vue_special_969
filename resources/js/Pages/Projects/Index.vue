@@ -205,6 +205,7 @@ const isEditTaskDropActive = ref(false);
 const editTaskFileInput = ref(null);
 const previewImageUrl = ref(null);
 const previewImageName = ref('');
+const expandedBoardColumn = ref(null);
 
 const formatFileSize = (bytes) => {
   if (!bytes || Number.isNaN(bytes)) {
@@ -221,6 +222,7 @@ const formatFileSize = (bytes) => {
 watch(
   () => selectedProjectId.value,
   (projectId) => {
+    expandedBoardColumn.value = null;
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
@@ -234,6 +236,26 @@ watch(
 );
 
 const notesByStatus = (status) => props.notes.filter((note) => note.status === status);
+
+const isInProgressExpanded = computed(() => expandedBoardColumn.value === 'in_progress');
+
+const isColumnPreview = (status) => isInProgressExpanded.value && status !== 'in_progress';
+
+const boardColumnsClass = computed(() =>
+  isInProgressExpanded.value
+    ? 'grid gap-4 lg:grid-cols-[0.5fr_9fr_0.5fr]'
+    : 'grid gap-4 lg:grid-cols-3'
+);
+
+const boardColumnClasses = (status) => [
+  'min-h-[360px] rounded-xl border border-gray-200 bg-gray-50 p-4 transition-all duration-300',
+  isColumnPreview(status) ? 'hidden lg:flex lg:flex-col lg:overflow-hidden lg:px-2' : '',
+  dragOverStatus.value === status ? 'ring-2 ring-blue-400 ring-offset-2' : '',
+];
+
+const toggleInProgressExpansion = () => {
+  expandedBoardColumn.value = isInProgressExpanded.value ? null : 'in_progress';
+};
 
 const projectProgressClass = (project) =>
   project.is_done
@@ -979,283 +1001,325 @@ const deleteProject = (projectId) => {
             </div>
           </div>
 
-          <div class="grid gap-4 lg:grid-cols-3">
+          <div :class="boardColumnsClass">
             <section
               v-for="column in columns"
               :key="column.key"
-              class="min-h-[360px] rounded-xl border border-gray-200 bg-gray-50 p-4"
-              :class="{ 'ring-2 ring-blue-400 ring-offset-2': dragOverStatus === column.key }"
+              :class="boardColumnClasses(column.key)"
               @dragover.prevent="onDragOverColumn(column.key)"
               @dragleave="dragOverStatus = null"
               @drop="moveDraggedNoteTo(column.key)"
             >
-              <div class="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <h3 class="text-base font-semibold text-gray-900">{{ column.title }}</h3>
-                  <p class="text-xs text-gray-500">{{ column.description }}</p>
-                </div>
-                <div class="flex items-center gap-1.5">
+              <template v-if="isColumnPreview(column.key)">
+                <div class="h-full items-center justify-between lg:flex lg:flex-col lg:gap-4">
                   <button
                     v-if="column.key === 'todo'"
                     type="button"
-                    class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                    class="inline-flex h-8 w-8 items-center justify-center self-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
                     title="Add item"
                     @click="openCreateModal"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                     </svg>
                   </button>
-                  <span class="rounded-full border px-2 py-0.5 text-xs font-medium" :class="column.badgeClass">
+
+                  <div class="flex flex-1 items-center justify-center overflow-hidden">
+                    <p class="text-center text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400 [writing-mode:vertical-rl] rotate-180">
+                      {{ column.title }}
+                    </p>
+                  </div>
+
+                  <span class="self-center rounded-full border px-2 py-0.5 text-xs font-medium" :class="column.badgeClass">
                     {{ notesByStatus(column.key).length }}
                   </span>
                 </div>
-              </div>
+              </template>
 
-              <div class="space-y-3">
-                <article
-                  v-for="note in notesByStatus(column.key)"
-                  :key="note.id"
-                  class="cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:cursor-grabbing"
-                  draggable="true"
-                  @dragstart="onDragStart($event, note.id)"
-                  @dragend="onDragEnd"
-                >
-                  <template v-if="editForm.id === note.id">
-                    <div class="space-y-2">
-                      <input
-                        v-model="editForm.title"
-                        type="text"
-                        class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      >
-                      <textarea
-                        v-model="editForm.content"
-                        rows="3"
-                        class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      ></textarea>
-                      <div>
-                        <div class="mb-1 flex items-center justify-between gap-2">
-                          <label class="block text-xs font-medium text-gray-700">Clipboard / Files (optional)</label>
-                          <button
-                            type="button"
-                            class="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                            @click="pasteFromClipboard(editForm, 'clipboard_text')"
-                          >
-                            Paste text
-                          </button>
-                        </div>
+              <template v-else>
+                <div class="mb-3 flex items-start justify-between gap-2">
+                  <div>
+                    <h3 class="text-base font-semibold text-gray-900">{{ column.title }}</h3>
+                    <p class="text-xs text-gray-500">{{ column.description }}</p>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      v-if="column.key === 'todo'"
+                      type="button"
+                      class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                      title="Add item"
+                      @click="openCreateModal"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                    <button
+                      v-if="column.key === 'in_progress'"
+                      type="button"
+                      class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                      :title="isInProgressExpanded ? 'Minimize In Progress column' : 'Maximize In Progress column'"
+                      :aria-label="isInProgressExpanded ? 'Minimize In Progress column' : 'Maximize In Progress column'"
+                      @click="toggleInProgressExpansion"
+                    >
+                      <svg v-if="!isInProgressExpanded" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H3V3m0 0 5 5m4 0 5-5m0 0v5h-5m0 4h5v5m0 0-5-5m-4 0-5 5m0 0v-5h5" />
+                      </svg>
+                    </button>
+                    <span class="rounded-full border px-2 py-0.5 text-xs font-medium" :class="column.badgeClass">
+                      {{ notesByStatus(column.key).length }}
+                    </span>
+                  </div>
+                </div>
 
-                        <div
-                          class="rounded-lg border border-dashed p-3 transition"
-                          :class="isEditTaskDropActive ? 'border-indigo-400 bg-indigo-50/60' : 'border-gray-300 bg-gray-50/40'"
-                          role="button"
-                          tabindex="0"
-                          @dragover.prevent="isEditTaskDropActive = true"
-                          @dragleave="isEditTaskDropActive = false"
-                          @drop="onEditTaskDrop"
-                          @paste="onEditTaskPaste"
-                          @click="openEditTaskFilePicker"
+                <div class="space-y-3">
+                  <article
+                    v-for="note in notesByStatus(column.key)"
+                    :key="note.id"
+                    class="cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:cursor-grabbing"
+                    draggable="true"
+                    @dragstart="onDragStart($event, note.id)"
+                    @dragend="onDragEnd"
+                  >
+                    <template v-if="editForm.id === note.id">
+                      <div class="space-y-2">
+                        <input
+                          v-model="editForm.title"
+                          type="text"
+                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
-                          <p class="mb-2 text-[11px] text-gray-500">Paste text/screenshots, drag & drop files, or click this area to upload from PC.</p>
-
-                          <input
-                            ref="editTaskFileInput"
-                            type="file"
-                            multiple
-                            class="hidden"
-                            @change="onEditTaskAttachmentsSelected"
-                          >
-
-                          <textarea
-                            v-model="editForm.clipboard_text"
-                            rows="2"
-                            class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="Paste copied screen text"
-                            @click.stop
-                          ></textarea>
-
-                          <div class="mt-2">
+                        <textarea
+                          v-model="editForm.content"
+                          rows="3"
+                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        ></textarea>
+                        <div>
+                          <div class="mb-1 flex items-center justify-between gap-2">
+                            <label class="block text-xs font-medium text-gray-700">Clipboard / Files (optional)</label>
                             <button
                               type="button"
-                              class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
-                              title="Attach files"
-                              aria-label="Attach files"
-                              @click.stop="openEditTaskFilePicker"
+                              class="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                              @click="pasteFromClipboard(editForm, 'clipboard_text')"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M8 3a5 5 0 015 5v5a3 3 0 11-6 0V8a1 1 0 112 0v5a1 1 0 102 0V8a3 3 0 10-6 0v5a5 5 0 1010 0V8a1 1 0 112 0v5a7 7 0 11-14 0V8a5 5 0 015-5z" clip-rule="evenodd" />
-                              </svg>
+                              Paste text
                             </button>
                           </div>
 
-                          <div v-if="editForm.attachments.length" class="mt-3 rounded-md border border-gray-200 bg-white p-2" @click.stop>
-                            <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Attached files</p>
-                            <ul class="max-h-36 space-y-1 overflow-auto">
-                              <li
-                                v-for="(file, index) in editForm.attachments"
-                                :key="`${file.name}-${index}`"
-                                class="flex items-center justify-between gap-2 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                          <div
+                            class="rounded-lg border border-dashed p-3 transition"
+                            :class="isEditTaskDropActive ? 'border-indigo-400 bg-indigo-50/60' : 'border-gray-300 bg-gray-50/40'"
+                            role="button"
+                            tabindex="0"
+                            @dragover.prevent="isEditTaskDropActive = true"
+                            @dragleave="isEditTaskDropActive = false"
+                            @drop="onEditTaskDrop"
+                            @paste="onEditTaskPaste"
+                            @click="openEditTaskFilePicker"
+                          >
+                            <p class="mb-2 text-[11px] text-gray-500">Paste text/screenshots, drag & drop files, or click this area to upload from PC.</p>
+
+                            <input
+                              ref="editTaskFileInput"
+                              type="file"
+                              multiple
+                              class="hidden"
+                              @change="onEditTaskAttachmentsSelected"
+                            >
+
+                            <textarea
+                              v-model="editForm.clipboard_text"
+                              rows="2"
+                              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              placeholder="Paste copied screen text"
+                              @click.stop
+                            ></textarea>
+
+                            <div class="mt-2">
+                              <button
+                                type="button"
+                                class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+                                title="Attach files"
+                                aria-label="Attach files"
+                                @click.stop="openEditTaskFilePicker"
                               >
-                                <div class="flex min-w-0 items-center gap-2">
-                                  <button
-                                    v-if="file.__previewUrl"
-                                    type="button"
-                                    class="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-100"
-                                    :title="`Preview ${file.name}`"
-                                    @click.stop="openAttachmentPreview(file)"
-                                  >
-                                    <img
-                                      :src="file.__previewUrl"
-                                      alt="Preview"
-                                      class="h-full w-full object-cover"
-                                    >
-                                  </button>
-                                  <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-500">
-                                    FILE
-                                  </div>
-                                  <div class="min-w-0">
-                                    <p class="truncate font-medium" :title="file.name">{{ index + 1 }}. {{ file.name }}</p>
-                                    <p class="text-[10px] text-gray-500">{{ formatFileSize(file.size) }}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
-                                  @click.stop="removeEditTaskAttachment(index)"
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M8 3a5 5 0 015 5v5a3 3 0 11-6 0V8a1 1 0 112 0v5a1 1 0 102 0V8a3 3 0 10-6 0v5a5 5 0 1010 0V8a1 1 0 112 0v5a7 7 0 11-14 0V8a5 5 0 015-5z" clip-rule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            <div v-if="editForm.attachments.length" class="mt-3 rounded-md border border-gray-200 bg-white p-2" @click.stop>
+                              <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Attached files</p>
+                              <ul class="max-h-36 space-y-1 overflow-auto">
+                                <li
+                                  v-for="(file, index) in editForm.attachments"
+                                  :key="`${file.name}-${index}`"
+                                  class="flex items-center justify-between gap-2 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700"
                                 >
-                                  x
-                                </button>
-                              </li>
-                            </ul>
+                                  <div class="flex min-w-0 items-center gap-2">
+                                    <button
+                                      v-if="file.__previewUrl"
+                                      type="button"
+                                      class="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-100"
+                                      :title="`Preview ${file.name}`"
+                                      @click.stop="openAttachmentPreview(file)"
+                                    >
+                                      <img
+                                        :src="file.__previewUrl"
+                                        alt="Preview"
+                                        class="h-full w-full object-cover"
+                                      >
+                                    </button>
+                                    <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-500">
+                                      FILE
+                                    </div>
+                                    <div class="min-w-0">
+                                      <p class="truncate font-medium" :title="file.name">{{ index + 1 }}. {{ file.name }}</p>
+                                      <p class="text-[10px] text-gray-500">{{ formatFileSize(file.size) }}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                                    @click.stop="removeEditTaskAttachment(index)"
+                                  >
+                                    x
+                                  </button>
+                                </li>
+                              </ul>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div class="grid grid-cols-2 gap-2">
-                        <select
-                          v-model="editForm.status"
-                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option v-for="option in columns" :key="option.key" :value="option.key">
-                            {{ option.title }}
-                          </option>
-                        </select>
-                        <select
-                          v-model="editForm.progress"
-                          class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option v-for="step in progressSteps" :key="step" :value="step">
-                            {{ step }}%
-                          </option>
-                        </select>
-                      </div>
-                      <div class="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
-                          :disabled="editForm.processing"
-                          title="Save"
-                          @click="updateNote"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3-3a1 1 0 011.42-1.42L9 11.586l6.546-6.546a1 1 0 011.158-.21z" clip-rule="evenodd" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
-                          title="Cancel"
-                          @click="cancelEditing"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </template>
-
-                  <template v-else>
-                    <div class="flex items-start justify-between gap-2">
-                      <h4 class="text-sm font-semibold text-gray-900">{{ note.title }}</h4>
-                    </div>
-                    <p v-if="note.content" class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
-                    <div v-if="note.clipboard_text" class="mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
-                      <div class="mb-1 flex items-center justify-between gap-2">
-                        <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Clipboard</p>
-                        <button
-                          type="button"
-                          class="inline-flex items-center rounded-md border border-indigo-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                          @click="copyToClipboard(note.clipboard_text)"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <p class="whitespace-pre-wrap text-xs text-indigo-900">{{ note.clipboard_text }}</p>
-                    </div>
-
-                    <div v-if="note.attachments?.length" class="mt-2 flex flex-wrap gap-2">
-                      <a
-                        v-for="attachment in note.attachments"
-                        :key="`note-attachment-${note.id}-${attachment.path}`"
-                        :href="attachment.url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
-                      >
-                        {{ attachment.original_name }}
-                      </a>
-                    </div>
-
-                    <div v-if="note.status === 'in_progress'" class="mt-2">
-                      <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
-                        <span>Progress</span>
-                        <span>{{ note.progress }}%</span>
-                      </div>
-                      <button
-                        type="button"
-                        class="block w-full rounded-full border border-blue-200 bg-white p-1"
-                        title="Click to advance progress"
-                        @click="advanceProgress(note)"
-                      >
-                        <div class="h-2 w-full rounded-full bg-blue-100">
-                          <div
-                            class="h-2 rounded-full bg-blue-500 transition-all duration-200"
-                            :style="{ width: `${note.progress}%` }"
-                          ></div>
+                        <div class="grid grid-cols-2 gap-2">
+                          <select
+                            v-model="editForm.status"
+                            class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          >
+                            <option v-for="option in columns" :key="option.key" :value="option.key">
+                              {{ option.title }}
+                            </option>
+                          </select>
+                          <select
+                            v-model="editForm.progress"
+                            class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          >
+                            <option v-for="step in progressSteps" :key="step" :value="step">
+                              {{ step }}%
+                            </option>
+                          </select>
                         </div>
-                      </button>
-                      <p class="mt-1 text-[11px] text-gray-500">Click the line to move to next step.</p>
-                    </div>
+                        <div class="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+                            :disabled="editForm.processing"
+                            title="Save"
+                            @click="updateNote"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3-3a1 1 0 011.42-1.42L9 11.586l6.546-6.546a1 1 0 011.158-.21z" clip-rule="evenodd" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                            title="Cancel"
+                            @click="cancelEditing"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </template>
 
-                    <div class="mt-3 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-                        title="Edit"
-                        @click="startEditing(note)"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M17.414 2.586a2 2 0 010 2.828l-8.5 8.5a1 1 0 01-.45.263l-4 1a1 1 0 01-1.213-1.213l1-4a1 1 0 01.263-.45l8.5-8.5a2 2 0 012.828 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition hover:bg-red-100"
-                        title="Delete"
-                        @click="deleteNote(note.id)"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M8.257 3.099c.366-.446.911-.7 1.486-.7h.514c.575 0 1.12.254 1.486.7L12.6 4H15a1 1 0 110 2h-.533l-.804 9.646A2 2 0 0111.67 17H8.33a2 2 0 01-1.993-1.354L5.533 6H5a1 1 0 110-2h2.4l.857-.901zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </template>
-                </article>
+                    <template v-else>
+                      <div class="flex items-start justify-between gap-2">
+                        <h4 class="text-sm font-semibold text-gray-900">{{ note.title }}</h4>
+                      </div>
+                      <p v-if="note.content" class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
+                      <div v-if="note.clipboard_text" class="mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
+                        <div class="mb-1 flex items-center justify-between gap-2">
+                          <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Clipboard</p>
+                          <button
+                            type="button"
+                            class="inline-flex items-center rounded-md border border-indigo-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                            @click="copyToClipboard(note.clipboard_text)"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p class="whitespace-pre-wrap text-xs text-indigo-900">{{ note.clipboard_text }}</p>
+                      </div>
 
-                <p v-if="notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
-                  Drop an item here
-                </p>
-              </div>
+                      <div v-if="note.attachments?.length" class="mt-2 flex flex-wrap gap-2">
+                        <a
+                          v-for="attachment in note.attachments"
+                          :key="`note-attachment-${note.id}-${attachment.path}`"
+                          :href="attachment.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                        >
+                          {{ attachment.original_name }}
+                        </a>
+                      </div>
+
+                      <div v-if="note.status === 'in_progress'" class="mt-2">
+                        <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
+                          <span>Progress</span>
+                          <span>{{ note.progress }}%</span>
+                        </div>
+                        <button
+                          type="button"
+                          class="block w-full rounded-full border border-blue-200 bg-white p-1"
+                          title="Click to advance progress"
+                          @click="advanceProgress(note)"
+                        >
+                          <div class="h-2 w-full rounded-full bg-blue-100">
+                            <div
+                              class="h-2 rounded-full bg-blue-500 transition-all duration-200"
+                              :style="{ width: `${note.progress}%` }"
+                            ></div>
+                          </div>
+                        </button>
+                        <p class="mt-1 text-[11px] text-gray-500">Click the line to move to next step.</p>
+                      </div>
+
+                      <div class="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                          title="Edit"
+                          @click="startEditing(note)"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M17.414 2.586a2 2 0 010 2.828l-8.5 8.5a1 1 0 01-.45.263l-4 1a1 1 0 01-1.213-1.213l1-4a1 1 0 01.263-.45l8.5-8.5a2 2 0 012.828 0z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition hover:bg-red-100"
+                          title="Delete"
+                          @click="deleteNote(note.id)"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.366-.446.911-.7 1.486-.7h.514c.575 0 1.12.254 1.486.7L12.6 4H15a1 1 0 110 2h-.533l-.804 9.646A2 2 0 0111.67 17H8.33a2 2 0 01-1.993-1.354L5.533 6H5a1 1 0 110-2h2.4l.857-.901zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </template>
+                  </article>
+
+                  <p v-if="notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
+                    Drop an item here
+                  </p>
+                </div>
+              </template>
             </section>
           </div>
         </div>
