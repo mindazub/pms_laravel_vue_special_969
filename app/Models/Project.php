@@ -11,7 +11,13 @@ class Project extends Model
 
     protected $fillable = [
         'name',
+        'description',
+        'attachments',
         'user_id',
+    ];
+
+    protected $casts = [
+        'attachments' => 'array',
     ];
 
     public function user()

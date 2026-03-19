@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Note;
 use App\Models\Project;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -36,6 +37,8 @@ class ProjectController extends Controller
             return [
                 'id' => $project->id,
                 'name' => $project->name,
+                'description' => $project->description,
+                'attachments' => $project->attachments ?? [],
                 'notes_count' => $totalNotes,
                 'done_notes_count' => $doneNotes,
                 'completion_percentage' => $completionPercentage,
@@ -69,6 +72,8 @@ class ProjectController extends Controller
                 $selectedProject = [
                     'id' => $project->id,
                     'name' => $project->name,
+                    'description' => $project->description,
+                    'attachments' => $project->attachments ?? [],
                     'notes_count' => $totalNotes,
                     'done_notes_count' => $doneNotes,
                     'completion_percentage' => $completionPercentage,
@@ -82,6 +87,7 @@ class ProjectController extends Controller
                         'id' => $note->id,
                         'title' => $note->title,
                         'content' => $note->content,
+                        'attachments' => $note->attachments ?? [],
                         'status' => $note->status,
                         'progress' => (int) $note->progress,
                     ]);
@@ -111,9 +117,22 @@ class ProjectController extends Controller
                     fn ($query) => $query->where('user_id', $request->user()->id)
                 ),
             ],
+            'description' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
         ]);
 
-        $project = $request->user()->projects()->create($validated);
+        $project = $request->user()->projects()->create([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'attachments' => [],
+        ]);
+
+        if ($request->hasFile('attachments')) {
+            $project->update([
+                'attachments' => $this->storeUploadedFiles($request->file('attachments'), "projects/{$project->id}"),
+            ]);
+        }
 
         return redirect()
             ->route('projects.index', ['project' => $project->id])
@@ -136,11 +155,25 @@ class ProjectController extends Controller
                     ->where(fn ($query) => $query->where('user_id', $request->user()->id))
                     ->ignore($ownedProject->id),
             ],
+            'description' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
             'selected_project_id' => ['nullable', 'integer'],
         ]);
 
+        $attachments = $ownedProject->attachments ?? [];
+
+        if ($request->hasFile('attachments')) {
+            $attachments = array_merge(
+                $attachments,
+                $this->storeUploadedFiles($request->file('attachments'), "projects/{$ownedProject->id}")
+            );
+        }
+
         $ownedProject->update([
             'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'attachments' => $attachments,
         ]);
 
         $selectedProjectId = (int) ($validated['selected_project_id'] ?? $ownedProject->id);
@@ -170,5 +203,31 @@ class ProjectController extends Controller
         return redirect()
             ->route('projects.index', $fallbackProjectId ? ['project' => $fallbackProjectId] : [])
             ->with('success', 'Project deleted successfully.');
+    }
+
+    /**
+     * @param  array<int, UploadedFile>|null  $files
+     * @return array<int, array{original_name: string, path: string, mime_type: string, size: int, url: string}>
+     */
+    private function storeUploadedFiles(?array $files, string $directory): array
+    {
+        if (! $files) {
+            return [];
+        }
+
+        return collect($files)
+            ->map(function (UploadedFile $file) use ($directory) {
+                $path = $file->store($directory, 'public');
+
+                return [
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
+                    'size' => (int) $file->getSize(),
+                    'url' => asset('storage/'.$path),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

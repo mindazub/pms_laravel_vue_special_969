@@ -25,10 +25,12 @@ class Note extends Model
         'content',
         'status',
         'progress',
+        'attachments',
     ];
 
     protected $casts = [
         'progress' => 'integer',
+        'attachments' => 'array',
     ];
 
     public function user()

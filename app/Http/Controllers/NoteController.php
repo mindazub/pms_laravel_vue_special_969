@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Note;
 use App\Models\Project;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -45,9 +46,11 @@ class NoteController extends Controller
                 ),
             ],
             'title' => 'required|string|max:255',
-            'content' => 'required|string',
+            'content' => 'nullable|string',
             'status' => ['nullable', Rule::in(Note::STATUSES)],
             'progress' => ['nullable', Rule::in(self::PROGRESS_STEPS)],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
         ]);
 
         $validated['status'] = $validated['status'] ?? Note::STATUS_TODO;
@@ -60,7 +63,14 @@ class NoteController extends Controller
             $validated['progress'] = 0;
         }
 
-        $note = $request->user()->notes()->create($validated);
+        $note = $request->user()->notes()->create([
+            'project_id' => $validated['project_id'],
+            'title' => $validated['title'],
+            'content' => $validated['content'] ?? '',
+            'status' => $validated['status'],
+            'progress' => $validated['progress'],
+            'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
+        ]);
 
         if (! $request->expectsJson()) {
             return redirect()
@@ -89,9 +99,11 @@ class NoteController extends Controller
 
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
-            'content' => 'sometimes|required|string',
+            'content' => 'sometimes|nullable|string',
             'status' => ['sometimes', Rule::in(Note::STATUSES)],
             'progress' => ['sometimes', Rule::in(self::PROGRESS_STEPS)],
+            'attachments' => ['sometimes', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
         ]);
 
         if (array_key_exists('progress', $validated) && (int) $validated['progress'] === 100) {
@@ -110,6 +122,17 @@ class NoteController extends Controller
             if ($validated['status'] === Note::STATUS_IN_PROGRESS && ! array_key_exists('progress', $validated)) {
                 $validated['progress'] = $note->progress === 100 ? 75 : $note->progress;
             }
+        }
+
+        if (array_key_exists('content', $validated) && $validated['content'] === null) {
+            $validated['content'] = '';
+        }
+
+        if ($request->hasFile('attachments')) {
+            $validated['attachments'] = array_merge(
+                $note->attachments ?? [],
+                $this->storeUploadedFiles($request->file('attachments'), "notes/{$note->id}")
+            );
         }
 
         $note->update($validated);
@@ -141,5 +164,31 @@ class NoteController extends Controller
         }
 
         return response()->noContent();
+    }
+
+    /**
+     * @param  array<int, UploadedFile>|null  $files
+     * @return array<int, array{original_name: string, path: string, mime_type: string, size: int, url: string}>
+     */
+    private function storeUploadedFiles(?array $files, string $directory): array
+    {
+        if (! $files) {
+            return [];
+        }
+
+        return collect($files)
+            ->map(function (UploadedFile $file) use ($directory) {
+                $path = $file->store($directory, 'public');
+
+                return [
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
+                    'size' => (int) $file->getSize(),
+                    'url' => asset('storage/'.$path),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

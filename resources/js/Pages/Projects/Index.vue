@@ -57,6 +57,7 @@ const createForm = useForm({
   project_id: selectedProjectId.value,
   title: '',
   content: '',
+  attachments: [],
   status: 'todo',
   progress: 0,
 });
@@ -71,11 +72,15 @@ const editForm = useForm({
 
 const createProjectForm = useForm({
   name: '',
+  description: '',
+  attachments: [],
 });
 
 const editProjectForm = useForm({
   id: null,
   name: '',
+  description: '',
+  attachments: [],
   selected_project_id: selectedProjectId.value,
 });
 
@@ -91,7 +96,7 @@ watch(
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
-    createForm.reset('title', 'content');
+    createForm.reset('title', 'content', 'attachments');
     createForm.clearErrors();
     isCreateModalOpen.value = false;
 
@@ -122,7 +127,7 @@ const openCreateModal = () => {
 const closeCreateModal = () => {
   isCreateModalOpen.value = false;
   createForm.clearErrors();
-  createForm.reset('title', 'content');
+  createForm.reset('title', 'content', 'attachments');
   createForm.status = 'todo';
   createForm.progress = 0;
 };
@@ -135,6 +140,7 @@ const createNote = () => {
   createForm.project_id = selectedProjectId.value;
   createForm.post(route('notes.store'), {
     preserveScroll: true,
+    forceFormData: true,
     onSuccess: () => closeCreateModal(),
   });
 };
@@ -284,6 +290,7 @@ const closeCreateProjectModal = () => {
 const createProject = () => {
   createProjectForm.post(route('projects.store'), {
     preserveScroll: true,
+    forceFormData: true,
     onSuccess: () => closeCreateProjectModal(),
   });
 };
@@ -291,6 +298,8 @@ const createProject = () => {
 const openEditProjectModal = (project) => {
   editProjectForm.id = project.id;
   editProjectForm.name = project.name;
+  editProjectForm.description = project.description ?? '';
+  editProjectForm.attachments = [];
   editProjectForm.selected_project_id = selectedProjectId.value;
   editProjectForm.clearErrors();
   isEditProjectModalOpen.value = true;
@@ -312,8 +321,21 @@ const updateProject = () => {
   editProjectForm.selected_project_id = selectedProjectId.value;
   editProjectForm.patch(route('projects.update', editProjectForm.id), {
     preserveScroll: true,
+    forceFormData: true,
     onSuccess: () => closeEditProjectModal(),
   });
+};
+
+const onCreateTaskAttachmentsSelected = (event) => {
+  createForm.attachments = Array.from(event.target.files ?? []);
+};
+
+const onCreateProjectAttachmentsSelected = (event) => {
+  createProjectForm.attachments = Array.from(event.target.files ?? []);
+};
+
+const onEditProjectAttachmentsSelected = (event) => {
+  editProjectForm.attachments = Array.from(event.target.files ?? []);
 };
 
 const deleteProject = (projectId) => {
@@ -378,7 +400,10 @@ const deleteProject = (projectId) => {
                     'bg-blue-50/70': selectedProjectId === project.id && !project.is_done,
                   }"
                 >
-                  <td class="px-3 py-3 font-medium text-gray-900">{{ project.name }}</td>
+                  <td class="px-3 py-3">
+                    <p class="font-medium text-gray-900">{{ project.name }}</p>
+                    <p v-if="project.description" class="text-xs text-gray-500">{{ project.description }}</p>
+                  </td>
                   <td class="px-3 py-3 text-gray-600">{{ project.done_notes_count }} / {{ project.notes_count }}</td>
                   <td class="px-3 py-3">
                     <div class="flex items-center gap-2">
@@ -442,6 +467,19 @@ const deleteProject = (projectId) => {
               {{ selectedProject.done_notes_count }} of {{ selectedProject.notes_count }} tasks done
               ({{ selectedProject.completion_percentage }}%)
             </p>
+            <p v-if="selectedProject.description" class="mt-1 text-sm text-gray-600">{{ selectedProject.description }}</p>
+            <div v-if="selectedProject.attachments?.length" class="mt-2 flex flex-wrap gap-2">
+              <a
+                v-for="attachment in selectedProject.attachments"
+                :key="`project-attachment-${attachment.path}`"
+                :href="attachment.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+              >
+                {{ attachment.original_name }}
+              </a>
+            </div>
           </div>
 
           <div class="grid gap-4 lg:grid-cols-3">
@@ -551,7 +589,20 @@ const deleteProject = (projectId) => {
                         </svg>
                       </span>
                     </div>
-                    <p class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
+                    <p v-if="note.content" class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
+
+                    <div v-if="note.attachments?.length" class="mt-2 flex flex-wrap gap-2">
+                      <a
+                        v-for="attachment in note.attachments"
+                        :key="`note-attachment-${note.id}-${attachment.path}`"
+                        :href="attachment.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                      >
+                        {{ attachment.original_name }}
+                      </a>
+                    </div>
 
                     <div v-if="note.status === 'in_progress'" class="mt-2">
                       <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
@@ -646,6 +697,32 @@ const deleteProject = (projectId) => {
             <p v-if="createProjectForm.errors.name" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.name }}</p>
           </div>
 
+          <div>
+            <label for="project-description" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+            <textarea
+              id="project-description"
+              v-model="createProjectForm.description"
+              rows="3"
+              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Describe project scope"
+            ></textarea>
+            <p v-if="createProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.description }}</p>
+          </div>
+
+          <div>
+            <label for="project-attachments" class="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
+            <input
+              id="project-attachments"
+              type="file"
+              multiple
+              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+              @change="onCreateProjectAttachmentsSelected"
+            >
+            <p class="mt-1 text-xs text-gray-500">You can select multiple files. Max 10MB per file.</p>
+            <p v-if="createProjectForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.attachments }}</p>
+            <p v-if="createProjectForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors['attachments.0'] }}</p>
+          </div>
+
           <div class="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -697,6 +774,48 @@ const deleteProject = (projectId) => {
               placeholder="Website redesign"
             >
             <p v-if="editProjectForm.errors.name" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.name }}</p>
+          </div>
+
+          <div>
+            <label for="project-edit-description" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+            <textarea
+              id="project-edit-description"
+              v-model="editProjectForm.description"
+              rows="3"
+              class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Describe project scope"
+            ></textarea>
+            <p v-if="editProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.description }}</p>
+          </div>
+
+          <div>
+            <label for="project-edit-attachments" class="mb-1 block text-sm font-medium text-gray-700">Add attachments (optional)</label>
+            <input
+              id="project-edit-attachments"
+              type="file"
+              multiple
+              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+              @change="onEditProjectAttachmentsSelected"
+            >
+            <p class="mt-1 text-xs text-gray-500">New files are appended to existing project attachments.</p>
+            <p v-if="editProjectForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.attachments }}</p>
+            <p v-if="editProjectForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors['attachments.0'] }}</p>
+          </div>
+
+          <div v-if="selectedProject?.attachments?.length" class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Existing files</p>
+            <div class="flex flex-wrap gap-2">
+              <a
+                v-for="attachment in selectedProject.attachments"
+                :key="`project-edit-attachment-${attachment.path}`"
+                :href="attachment.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+              >
+                {{ attachment.original_name }}
+              </a>
+            </div>
           </div>
 
           <div class="flex justify-end gap-2 pt-2">
@@ -753,7 +872,7 @@ const deleteProject = (projectId) => {
           </div>
 
           <div>
-            <label for="modal-content" class="mb-1 block text-sm font-medium text-gray-700">Content</label>
+            <label for="modal-content" class="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
             <textarea
               id="modal-content"
               v-model="createForm.content"
@@ -762,6 +881,20 @@ const deleteProject = (projectId) => {
               placeholder="Describe the item"
             ></textarea>
             <p v-if="createForm.errors.content" class="mt-1 text-xs text-red-600">{{ createForm.errors.content }}</p>
+          </div>
+
+          <div>
+            <label for="task-attachments" class="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
+            <input
+              id="task-attachments"
+              type="file"
+              multiple
+              class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+              @change="onCreateTaskAttachmentsSelected"
+            >
+            <p class="mt-1 text-xs text-gray-500">You can select multiple files. Max 10MB per file.</p>
+            <p v-if="createForm.errors.attachments" class="mt-1 text-xs text-red-600">{{ createForm.errors.attachments }}</p>
+            <p v-if="createForm.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ createForm.errors['attachments.0'] }}</p>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
