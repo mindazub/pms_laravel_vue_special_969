@@ -14,6 +14,7 @@ class UserRoleController extends Controller
         abort_unless($request->user()?->isAdminOrCeo(), 403);
 
         $users = User::query()
+            ->with('teams:id,name')
             ->orderBy('name')
             ->get()
             ->map(fn (User $user): array => [
@@ -21,6 +22,8 @@ class UserRoleController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role_names' => $user->getRoleNames()->values()->all(),
+                'team_names' => $user->teams->pluck('name')->sort()->values()->all(),
+                'team_count' => $user->teams->count(),
             ])
             ->values();
 
@@ -42,12 +45,15 @@ class UserRoleController extends Controller
         ]);
 
         $user->syncRoles([$validated['role']]);
+        $user->load('teams:id,name');
 
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'role_names' => $user->getRoleNames()->values()->all(),
+            'team_names' => $user->teams->pluck('name')->sort()->values()->all(),
+            'team_count' => $user->teams->count(),
         ]);
     }
 }

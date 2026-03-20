@@ -1416,7 +1416,7 @@ const deleteProject = (projectId) => {
           <div class="flex items-start justify-between gap-4">
             <div>
               <h3 class="text-lg font-semibold text-gray-900">People Management</h3>
-              <p class="text-sm text-gray-500">Teams, customers, and user role tables are now available on the dedicated people page.</p>
+              <p class="text-sm text-gray-500">The People section now includes an HR overview plus dedicated Teams, Customers, and Users pages.</p>
             </div>
             <Link
               :href="route('people.index')"

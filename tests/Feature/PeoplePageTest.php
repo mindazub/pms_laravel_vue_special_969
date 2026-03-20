@@ -18,7 +18,7 @@ class PeoplePageTest extends TestCase
         $this->get(route('people.index'))->assertRedirect(route('login'));
     }
 
-    public function test_people_page_renders_visible_people_data(): void
+    public function test_people_page_renders_hr_overview_data(): void
     {
         /** @var User $manager */
         $manager = User::factory()->createOne();
@@ -52,11 +52,14 @@ class PeoplePageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('People/Index')
-                ->has('teams', 1)
-                ->has('customers', 1)
-                ->has('users', 2)
-                ->where('teams.0.id', $team->id)
-                ->where('customers.0.id', $customer->id)
+                ->where('metrics.total_users', 2)
+                ->where('metrics.total_teams', 1)
+                ->where('metrics.total_customers', 1)
+                ->where('metrics.coverage_rate', 100)
+                ->has('largestTeams', 1)
+                ->where('largestTeams.0.id', $team->id)
+                ->has('recentCustomers', 1)
+                ->where('recentCustomers.0.id', $customer->id)
             );
     }
 }

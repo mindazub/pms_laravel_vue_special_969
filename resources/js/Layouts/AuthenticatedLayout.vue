@@ -34,7 +34,29 @@ const navigationLinks = computed(() => [
         year: '2026',
         label: 'People',
         href: route('people.index'),
-        active: route().current('people.index'),
+        active: route().current('people.*'),
+        children: [
+            {
+                label: 'Overview',
+                href: route('people.index'),
+                active: route().current('people.index'),
+            },
+            {
+                label: 'Teams',
+                href: route('people.teams.index'),
+                active: route().current('people.teams.index'),
+            },
+            {
+                label: 'Customers',
+                href: route('people.customers.index'),
+                active: route().current('people.customers.index'),
+            },
+            {
+                label: 'Users',
+                href: route('people.users.index'),
+                active: route().current('people.users.index'),
+            },
+        ],
     },
     {
         year: '2025',
@@ -77,6 +99,24 @@ const sidebarLinkClasses = (isActive) => {
         : 'flex items-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900';
 };
 
+const sidebarChildLinkClasses = (isActive) => {
+    return isActive
+        ? 'flex items-center rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700'
+        : 'flex items-center rounded-md px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800';
+};
+
+const topChildLinkClasses = (isActive) => {
+    return isActive
+        ? 'rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700'
+        : 'rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800';
+};
+
+const mobileChildLinkClasses = (isActive) => {
+    return isActive
+        ? 'block rounded-md bg-indigo-50 px-6 py-2 text-sm font-semibold text-indigo-700'
+        : 'block rounded-md px-6 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800';
+};
+
 onMounted(() => {
     const savedPosition = localStorage.getItem('app-navigation-position');
     if (savedPosition === 'left' || savedPosition === 'top') {
@@ -104,14 +144,24 @@ onMounted(() => {
                         <div v-for="section in navigationSections" :key="`sidebar-section-${section.year}`">
                             <p class="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
                             <div class="space-y-1">
-                                <Link
-                                    v-for="link in section.links"
-                                    :key="`sidebar-${link.label}`"
-                                    :href="link.href"
-                                    :class="sidebarLinkClasses(link.active)"
-                                >
-                                    {{ link.label }}
-                                </Link>
+                                <div v-for="link in section.links" :key="`sidebar-${link.label}`" class="space-y-1">
+                                    <Link
+                                        :href="link.href"
+                                        :class="sidebarLinkClasses(link.active)"
+                                    >
+                                        {{ link.label }}
+                                    </Link>
+                                    <div v-if="link.children?.length" class="space-y-1 pl-4">
+                                        <Link
+                                            v-for="child in link.children"
+                                            :key="`sidebar-${link.label}-${child.label}`"
+                                            :href="child.href"
+                                            :class="sidebarChildLinkClasses(child.active)"
+                                        >
+                                            {{ child.label }}
+                                        </Link>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </nav>
@@ -180,7 +230,7 @@ onMounted(() => {
             >
                 <!-- Primary Navigation Menu -->
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div class="flex h-16 justify-between">
+                    <div class="flex min-h-16 justify-between py-3">
                         <div class="flex">
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
@@ -191,19 +241,31 @@ onMounted(() => {
 
                             <!-- Navigation Links -->
                             <div
-                                class="hidden gap-6 sm:ms-10 sm:flex sm:items-center"
+                                class="hidden gap-6 sm:ms-10 sm:flex sm:items-start"
                                 v-if="!isLeftNavigation"
                             >
-                                <div v-for="section in navigationSections" :key="`top-section-${section.year}`" class="flex items-center gap-1">
+                                <div v-for="section in navigationSections" :key="`top-section-${section.year}`" class="flex items-start gap-3">
                                     <span class="mr-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</span>
-                                    <NavLink
-                                        v-for="link in section.links"
-                                        :key="`top-${link.label}`"
-                                        :href="link.href"
-                                        :active="link.active"
-                                    >
-                                        {{ link.label }}
-                                    </NavLink>
+                                    <div class="flex items-start gap-4">
+                                        <div v-for="link in section.links" :key="`top-${link.label}`" class="space-y-1">
+                                            <NavLink
+                                                :href="link.href"
+                                                :active="link.active"
+                                            >
+                                                {{ link.label }}
+                                            </NavLink>
+                                            <div v-if="link.children?.length" class="flex flex-wrap gap-1 pl-1">
+                                                <Link
+                                                    v-for="child in link.children"
+                                                    :key="`top-${link.label}-${child.label}`"
+                                                    :href="child.href"
+                                                    :class="topChildLinkClasses(child.active)"
+                                                >
+                                                    {{ child.label }}
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -334,14 +396,24 @@ onMounted(() => {
                     <div class="space-y-4 pb-3 pt-2">
                         <div v-for="section in navigationSections" :key="`mobile-section-${section.year}`">
                             <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
-                            <ResponsiveNavLink
-                                v-for="link in section.links"
-                                :key="`mobile-${link.label}`"
-                                :href="link.href"
-                                :active="link.active"
-                            >
-                                {{ link.label }}
-                            </ResponsiveNavLink>
+                            <div v-for="link in section.links" :key="`mobile-${link.label}`" class="space-y-1">
+                                <ResponsiveNavLink
+                                    :href="link.href"
+                                    :active="link.active"
+                                >
+                                    {{ link.label }}
+                                </ResponsiveNavLink>
+                                <div v-if="link.children?.length" class="space-y-1">
+                                    <Link
+                                        v-for="child in link.children"
+                                        :key="`mobile-${link.label}-${child.label}`"
+                                        :href="child.href"
+                                        :class="mobileChildLinkClasses(child.active)"
+                                    >
+                                        {{ child.label }}
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

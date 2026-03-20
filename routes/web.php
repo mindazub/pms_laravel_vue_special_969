@@ -20,8 +20,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('projects', ProjectController::class)
         ->only(['index', 'store', 'update', 'destroy']);
 
-    Route::get('/people', [PeopleController::class, 'index'])
-        ->name('people.index');
+    Route::prefix('people')->name('people.')->group(function () {
+        Route::get('/', [PeopleController::class, 'index'])->name('index');
+        Route::get('/teams', [PeopleController::class, 'teams'])->name('teams.index');
+        Route::get('/customers', [PeopleController::class, 'customers'])->name('customers.index');
+        Route::get('/users', [PeopleController::class, 'users'])->name('users.index');
+    });
 
     Route::resource('teams', TeamController::class)
         ->only(['index', 'store', 'update', 'destroy']);
