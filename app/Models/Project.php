@@ -22,11 +22,15 @@ class Project extends Model
         'team_id',
         'customer_id',
         'project_manager_id',
+        'start_date',
+        'end_date',
     ];
 
     protected $casts = [
         'attachments' => 'array',
         'mentions' => 'array',
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function user(): BelongsTo

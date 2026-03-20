@@ -22,6 +22,7 @@ class StoreNoteRequest extends FormRequest
             'clipboard_text' => ['nullable', 'string'],
             'status' => ['nullable', Rule::in(Note::STATUSES)],
             'progress' => ['nullable', Rule::in([0, 25, 50, 75, 100])],
+            'estimated_time_hours' => ['nullable', 'numeric', 'min:0.25', 'max:24'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'max:10240'],
             'assignee_ids' => ['nullable', 'array'],

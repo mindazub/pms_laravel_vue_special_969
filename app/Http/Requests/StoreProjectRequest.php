@@ -24,6 +24,8 @@ class StoreProjectRequest extends FormRequest
             'team_id' => ['nullable', 'integer', 'exists:teams,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'project_manager_id' => ['nullable', 'integer', 'exists:users,id'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'mentions' => ['nullable', 'array'],
             'mentions.*.type' => ['required_with:mentions', Rule::in(['User', 'Team', 'Customer'])],
             'mentions.*.id' => ['nullable', 'integer'],
@@ -36,9 +38,19 @@ class StoreProjectRequest extends FormRequest
     public function prepareForValidation(): void
     {
         $managerId = $this->input('project_manager_id');
+        $startDate = $this->input('start_date');
+        $endDate = $this->input('end_date');
 
         if ($managerId === '') {
             $this->merge(['project_manager_id' => null]);
+        }
+
+        if ($startDate === '') {
+            $this->merge(['start_date' => null]);
+        }
+
+        if ($endDate === '') {
+            $this->merge(['end_date' => null]);
         }
     }
 

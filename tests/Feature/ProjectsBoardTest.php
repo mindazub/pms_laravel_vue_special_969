@@ -7,6 +7,7 @@ use App\Models\Note;
 use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -44,6 +45,8 @@ class ProjectsBoardTest extends TestCase
             'team_id' => $team->id,
             'customer_id' => $customer->id,
             'project_manager_id' => $user->id,
+            'start_date' => '2026-03-20',
+            'end_date' => '2026-03-28',
             'mentions' => [
                 ['type' => 'Team', 'id' => $team->id, 'name' => $team->name],
                 ['type' => 'Customer', 'id' => $customer->id, 'name' => $customer->name],
@@ -63,6 +66,7 @@ class ProjectsBoardTest extends TestCase
             'status' => Note::STATUS_IN_PROGRESS,
             'progress' => 50,
             'team_id' => $team->id,
+            'estimated_time_hours' => 6.5,
             'mentions' => [
                 ['type' => 'User', 'id' => $assignee->id, 'name' => $assignee->name],
             ],
@@ -92,12 +96,15 @@ class ProjectsBoardTest extends TestCase
                 ->where('selectedProject.customer_name', 'Acme Corp')
                 ->where('selectedProject.project_manager_id', $user->id)
                 ->where('selectedProject.project_manager_name', $user->name)
+                ->where('selectedProject.start_date', '2026-03-20')
+                ->where('selectedProject.end_date', '2026-03-28')
                 ->where('selectedProject.notes_count', 3)
                 ->where('selectedProject.done_notes_count', 1)
                 ->where('selectedProject.completion_percentage', 33)
                 ->where('statuses', Note::STATUSES)
                 ->has('notes', 3)
                 ->where('notes.1.id', $inProgressNote->id)
+                ->where('notes.1.estimated_time_hours', 6.5)
                 ->where('notes.1.assignee_ids', [$assignee->id])
                 ->where('notes.1.assignee_names', [$assignee->name])
                 ->where('notes.1.mentions.0.type', 'User')
@@ -106,6 +113,7 @@ class ProjectsBoardTest extends TestCase
                 ->has('teams', 1)
                 ->has('customers', 1)
                 ->has('users', 2)
+                ->where('defaultTaskEstimateHours', 1)
                 ->where('progressSteps', [0, 25, 50, 75, 100])
             );
     }
@@ -155,5 +163,42 @@ class ProjectsBoardTest extends TestCase
                 ->where('selectedProject.team_name', 'Operations')
                 ->where('projects.data.0.id', $project->id)
             );
+    }
+
+    public function test_note_creation_sets_default_estimated_hours_for_first_and_second_task_of_day(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        /** @var User $user */
+        $user = User::factory()->createOne();
+        $user->syncRoles([User::ROLE_USER]);
+
+        $project = Project::factory()->for($user)->createOne();
+
+        $this
+            ->actingAs($user)
+            ->post(route('notes.store'), [
+                'project_id' => $project->id,
+                'title' => 'First task today',
+                'status' => Note::STATUS_TODO,
+                'progress' => 0,
+            ])
+            ->assertRedirect(route('projects.index', ['project' => $project->id]));
+
+        $firstNote = Note::query()->where('title', 'First task today')->firstOrFail();
+        $this->assertSame(8.0, (float) $firstNote->estimated_time_hours);
+
+        $this
+            ->actingAs($user)
+            ->post(route('notes.store'), [
+                'project_id' => $project->id,
+                'title' => 'Second task today',
+                'status' => Note::STATUS_TODO,
+                'progress' => 0,
+            ])
+            ->assertRedirect(route('projects.index', ['project' => $project->id]));
+
+        $secondNote = Note::query()->where('title', 'Second task today')->firstOrFail();
+        $this->assertSame(4.0, (float) $secondNote->estimated_time_hours);
     }
 }

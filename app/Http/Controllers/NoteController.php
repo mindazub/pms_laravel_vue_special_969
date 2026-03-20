@@ -6,6 +6,7 @@ use App\Http\Requests\StoreNoteRequest;
 use App\Http\Requests\UpdateNoteRequest;
 use App\Models\Note;
 use App\Models\Project;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,6 +53,8 @@ class NoteController extends Controller
             'clipboard_text' => $request->validated('clipboard_text'),
             'status' => $request->validated('status') ?? Note::STATUS_TODO,
             'progress' => $request->validated('progress') ?? 0,
+            'estimated_time_hours' => $request->validated('estimated_time_hours')
+                ?? $this->defaultEstimatedHoursForUser($request->user()->id),
             'mentions' => $request->validated('mentions') ?? [],
             'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
         ];
@@ -176,5 +179,16 @@ class NoteController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function defaultEstimatedHoursForUser(int $userId): float
+    {
+        $createdToday = Note::query()
+            ->where('user_id', $userId)
+            ->where('scope', Note::SCOPE_GENERAL)
+            ->whereDate('created_at', CarbonImmutable::today())
+            ->count();
+
+        return max(0.5, round(8 / (2 ** $createdToday), 2));
     }
 }

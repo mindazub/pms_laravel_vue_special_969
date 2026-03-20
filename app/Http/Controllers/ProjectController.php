@@ -9,6 +9,7 @@ use App\Models\Note;
 use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -41,6 +42,8 @@ class ProjectController extends Controller
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
+                'start_date' => $project->start_date?->toDateString(),
+                'end_date' => $project->end_date?->toDateString(),
                 'clipboard_text' => $project->clipboard_text,
                 'attachments' => $project->attachments ?? [],
                 'mentions' => $project->mentions ?? [],
@@ -88,6 +91,8 @@ class ProjectController extends Controller
                     'id' => $project->id,
                     'name' => $project->name,
                     'description' => $project->description,
+                    'start_date' => $project->start_date?->toDateString(),
+                    'end_date' => $project->end_date?->toDateString(),
                     'clipboard_text' => $project->clipboard_text,
                     'attachments' => $project->attachments ?? [],
                     'mentions' => $project->mentions ?? [],
@@ -115,11 +120,18 @@ class ProjectController extends Controller
                         'mentions' => $note->mentions ?? [],
                         'status' => $note->status,
                         'progress' => (int) $note->progress,
+                        'estimated_time_hours' => $note->estimated_time_hours,
                         'assignee_ids' => $note->assignees->pluck('id')->values()->all(),
                         'assignee_names' => $note->assignees->pluck('name')->values()->all(),
                     ]);
             }
         }
+
+        $tasksCreatedToday = Note::query()
+            ->where('user_id', $request->user()->id)
+            ->where('scope', Note::SCOPE_GENERAL)
+            ->whereDate('created_at', CarbonImmutable::today())
+            ->count();
 
         $teams = Team::query()
             ->visibleTo($request->user())
@@ -144,6 +156,7 @@ class ProjectController extends Controller
             'teams' => $teams,
             'customers' => $customers,
             'users' => $users,
+            'defaultTaskEstimateHours' => $this->defaultEstimatedHoursForPosition($tasksCreatedToday + 1),
         ]);
     }
 
@@ -158,6 +171,8 @@ class ProjectController extends Controller
             'team_id' => $request->validated('team_id'),
             'customer_id' => $request->validated('customer_id'),
             'project_manager_id' => $request->validated('project_manager_id') ?? $request->user()->id,
+            'start_date' => $request->validated('start_date'),
+            'end_date' => $request->validated('end_date'),
         ];
 
         $project = $request->user()->projects()->create($projectData);
@@ -195,6 +210,8 @@ class ProjectController extends Controller
             'team_id' => $request->validated('team_id'),
             'customer_id' => $request->validated('customer_id'),
             'project_manager_id' => $request->validated('project_manager_id') ?? $project->project_manager_id,
+            'start_date' => $request->validated('start_date'),
+            'end_date' => $request->validated('end_date'),
         ]);
 
         $selectedProjectId = (int) ($request->validated('selected_project_id') ?? $project->id);
@@ -246,5 +263,14 @@ class ProjectController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function defaultEstimatedHoursForPosition(int $position): float
+    {
+        if ($position <= 1) {
+            return 8.0;
+        }
+
+        return max(0.5, round(8 / (2 ** ($position - 1)), 2));
     }
 }

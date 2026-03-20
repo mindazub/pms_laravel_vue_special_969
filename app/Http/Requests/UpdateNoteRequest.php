@@ -25,6 +25,7 @@ class UpdateNoteRequest extends FormRequest
             'clipboard_text' => ['sometimes', 'nullable', 'string'],
             'status' => ['sometimes', Rule::in(Note::STATUSES)],
             'progress' => ['sometimes', Rule::in([0, 25, 50, 75, 100])],
+            'estimated_time_hours' => ['sometimes', 'nullable', 'numeric', 'min:0.25', 'max:24'],
             'attachments' => ['sometimes', 'array'],
             'attachments.*' => ['file', 'max:10240'],
             'assignee_ids' => ['sometimes', 'array'],

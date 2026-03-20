@@ -36,6 +36,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  defaultTaskEstimateHours: {
+    type: Number,
+    default: 8,
+  },
 });
 
 const statusMeta = {
@@ -528,6 +532,7 @@ const createForm = useForm({
   attachments: [],
   status: 'todo',
   progress: 0,
+  estimated_time_hours: props.defaultTaskEstimateHours,
   assignee_ids: [],
   mentions: [],
 });
@@ -540,6 +545,7 @@ const editForm = useForm({
   attachments: [],
   status: 'todo',
   progress: 0,
+  estimated_time_hours: null,
   assignee_ids: [],
   mentions: [],
 });
@@ -552,6 +558,8 @@ const createProjectForm = useForm({
   team_id: null,
   customer_id: null,
   project_manager_id: null,
+  start_date: null,
+  end_date: null,
   mentions: [],
 });
 
@@ -564,6 +572,8 @@ const editProjectForm = useForm({
   team_id: null,
   customer_id: null,
   project_manager_id: null,
+  start_date: null,
+  end_date: null,
   mentions: [],
   selected_project_id: selectedProjectId.value,
 });
@@ -618,6 +628,8 @@ const editTaskFileInput = ref(null);
 const previewImageUrl = ref(null);
 const previewImageName = ref('');
 const expandedBoardColumn = ref(null);
+const projectListView = ref('list');
+const ganttPerspective = ref('week');
 
 const formatFileSize = (bytes) => {
   if (!bytes || Number.isNaN(bytes)) {
@@ -638,6 +650,7 @@ watch(
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
+    createForm.estimated_time_hours = props.defaultTaskEstimateHours;
     createForm.assignee_ids = [];
     createForm.mentions = [];
     createForm.reset('title', 'content', 'clipboard_text', 'attachments');
@@ -680,6 +693,212 @@ const projectProgressClass = (project) =>
         ? 'bg-blue-500'
         : 'bg-gray-400';
 
+const DAY_MS = 86400000;
+
+const parseIsoDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const scheduledProjects = computed(() => props.projects.data.filter((project) => project.start_date && project.end_date));
+
+const projectListViewportHeight = computed(() => {
+  const rows = Math.max(1, props.projects.data.length);
+  return Math.max(520, rows * 72 + 170);
+});
+
+const ganttRange = computed(() => {
+  if (scheduledProjects.value.length === 0) {
+    return null;
+  }
+
+  const startTimes = scheduledProjects.value
+    .map((project) => parseIsoDate(project.start_date)?.getTime())
+    .filter((value) => value !== null);
+  const endTimes = scheduledProjects.value
+    .map((project) => parseIsoDate(project.end_date)?.getTime())
+    .filter((value) => value !== null);
+
+  if (startTimes.length === 0 || endTimes.length === 0) {
+    return null;
+  }
+
+  const min = Math.min(...startTimes);
+  const max = Math.max(...endTimes);
+  const totalDays = Math.max(1, Math.round((max - min) / DAY_MS) + 1);
+
+  return {
+    start: new Date(min),
+    end: new Date(max),
+    totalDays,
+  };
+});
+
+const ganttRows = computed(() => {
+  if (!ganttRange.value) {
+    return [];
+  }
+
+  const rangeStart = ganttRange.value.start.getTime();
+  const rangeDays = ganttRange.value.totalDays;
+
+  return props.projects.data.map((project) => {
+    const start = parseIsoDate(project.start_date);
+    const end = parseIsoDate(project.end_date);
+
+    if (!start || !end) {
+      return {
+        ...project,
+        hasSchedule: false,
+        offsetPercent: 0,
+        widthPercent: 0,
+        durationDays: null,
+      };
+    }
+
+    const offsetDays = Math.max(0, Math.round((start.getTime() - rangeStart) / DAY_MS));
+    const durationDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
+
+    return {
+      ...project,
+      hasSchedule: true,
+      offsetPercent: (offsetDays / rangeDays) * 100,
+      widthPercent: (durationDays / rangeDays) * 100,
+      durationDays,
+    };
+  });
+});
+
+const dayMarkers = computed(() => {
+  if (!ganttRange.value) {
+    return [];
+  }
+
+  const markers = [];
+  const totalDays = ganttRange.value.totalDays;
+  const startTime = ganttRange.value.start.getTime();
+
+  for (let index = 0; index < totalDays; index += 1) {
+    const current = new Date(startTime + (index * DAY_MS));
+    const day = current.getDate();
+    const weekday = current.getDay();
+    const isMonthStart = day === 1;
+    const isYearStart = isMonthStart && current.getMonth() === 0;
+    const isWeekStart = weekday === 1;
+
+    markers.push({
+      index,
+      offsetPercent: (index / totalDays) * 100,
+      date: current,
+      day,
+      isMonthStart,
+      isYearStart,
+      isWeekStart,
+      showDayLabel: isMonthStart || isWeekStart || index === 0,
+    });
+  }
+
+  return markers;
+});
+
+const monthSegments = computed(() => {
+  if (!ganttRange.value) {
+    return [];
+  }
+
+  const segments = [];
+  const totalDays = ganttRange.value.totalDays;
+  let current = new Date(ganttRange.value.start);
+
+  while (current <= ganttRange.value.end) {
+    const segmentStart = new Date(current.getFullYear(), current.getMonth(), 1);
+    const segmentEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+    const clampedStart = segmentStart < ganttRange.value.start ? ganttRange.value.start : segmentStart;
+    const clampedEnd = segmentEnd > ganttRange.value.end ? ganttRange.value.end : segmentEnd;
+    const offsetDays = Math.max(0, Math.round((clampedStart.getTime() - ganttRange.value.start.getTime()) / DAY_MS));
+    const durationDays = Math.max(1, Math.round((clampedEnd.getTime() - clampedStart.getTime()) / DAY_MS) + 1);
+
+    segments.push({
+      key: `${clampedStart.getFullYear()}-${clampedStart.getMonth() + 1}`,
+      label: clampedStart.toLocaleDateString('en-US', { month: 'short' }),
+      offsetPercent: (offsetDays / totalDays) * 100,
+      widthPercent: (durationDays / totalDays) * 100,
+    });
+
+    current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+  }
+
+  return segments;
+});
+
+const yearSegments = computed(() => {
+  if (!ganttRange.value) {
+    return [];
+  }
+
+  const segments = [];
+  const totalDays = ganttRange.value.totalDays;
+  let year = ganttRange.value.start.getFullYear();
+
+  while (year <= ganttRange.value.end.getFullYear()) {
+    const segmentStart = new Date(year, 0, 1);
+    const segmentEnd = new Date(year, 11, 31);
+    const clampedStart = segmentStart < ganttRange.value.start ? ganttRange.value.start : segmentStart;
+    const clampedEnd = segmentEnd > ganttRange.value.end ? ganttRange.value.end : segmentEnd;
+    const offsetDays = Math.max(0, Math.round((clampedStart.getTime() - ganttRange.value.start.getTime()) / DAY_MS));
+    const durationDays = Math.max(1, Math.round((clampedEnd.getTime() - clampedStart.getTime()) / DAY_MS) + 1);
+
+    segments.push({
+      key: `year-${year}`,
+      label: String(year),
+      offsetPercent: (offsetDays / totalDays) * 100,
+      widthPercent: (durationDays / totalDays) * 100,
+    });
+
+    year += 1;
+  }
+
+  return segments;
+});
+
+const weekSegments = computed(() => {
+  if (!ganttRange.value) {
+    return [];
+  }
+
+  const start = new Date(ganttRange.value.start);
+  const day = start.getDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+  let cursor = new Date(start.getTime() + (offsetToMonday * DAY_MS));
+  const totalDays = ganttRange.value.totalDays;
+  const segments = [];
+
+  while (cursor <= ganttRange.value.end) {
+    const segmentStart = cursor < ganttRange.value.start ? ganttRange.value.start : cursor;
+    const segmentEnd = new Date(cursor.getTime() + (6 * DAY_MS));
+    const clampedEnd = segmentEnd > ganttRange.value.end ? ganttRange.value.end : segmentEnd;
+    const offsetDays = Math.max(0, Math.round((segmentStart.getTime() - ganttRange.value.start.getTime()) / DAY_MS));
+    const durationDays = Math.max(1, Math.round((clampedEnd.getTime() - segmentStart.getTime()) / DAY_MS) + 1);
+
+    const weekNumber = Math.ceil((((cursor - new Date(cursor.getFullYear(), 0, 1)) / DAY_MS) + 1) / 7);
+
+    segments.push({
+      key: `week-${cursor.toISOString().slice(0, 10)}`,
+      label: `W${weekNumber}`,
+      offsetPercent: (offsetDays / totalDays) * 100,
+      widthPercent: (durationDays / totalDays) * 100,
+    });
+
+    cursor = new Date(cursor.getTime() + (7 * DAY_MS));
+  }
+
+  return segments;
+});
+
 const openCreateModal = () => {
   if (!selectedProjectId.value) {
     return;
@@ -697,6 +916,7 @@ const closeCreateModal = () => {
   createForm.reset('title', 'content', 'clipboard_text', 'attachments');
   createForm.status = 'todo';
   createForm.progress = 0;
+  createForm.estimated_time_hours = props.defaultTaskEstimateHours;
   createForm.assignee_ids = [];
   createForm.mentions = [];
   noteMentionQuery.value = '';
@@ -725,6 +945,7 @@ const startEditing = (note) => {
   editForm.attachments = [];
   editForm.status = note.status;
   editForm.progress = note.progress;
+  editForm.estimated_time_hours = note.estimated_time_hours;
   editForm.assignee_ids = Array.isArray(note.assignee_ids) ? [...note.assignee_ids] : [];
   editForm.mentions = Array.isArray(note.mentions) ? [...note.mentions] : [];
   editNoteMentionQuery.value = '';
@@ -738,6 +959,7 @@ const cancelEditing = () => {
   editForm.id = null;
   editForm.status = 'todo';
   editForm.progress = 0;
+  editForm.estimated_time_hours = null;
   editForm.assignee_ids = [];
   editForm.mentions = [];
 };
@@ -869,6 +1091,8 @@ const openCreateProjectModal = () => {
   createProjectForm.team_id = null;
   createProjectForm.customer_id = null;
   createProjectForm.project_manager_id = null;
+  createProjectForm.start_date = null;
+  createProjectForm.end_date = null;
   createProjectForm.mentions = [];
   projectMentionQuery.value = '';
   projectMentionSuggestions.value = [];
@@ -884,6 +1108,8 @@ const closeCreateProjectModal = () => {
   createProjectForm.team_id = null;
   createProjectForm.customer_id = null;
   createProjectForm.project_manager_id = null;
+  createProjectForm.start_date = null;
+  createProjectForm.end_date = null;
   createProjectForm.mentions = [];
   projectMentionQuery.value = '';
   projectMentionSuggestions.value = [];
@@ -906,6 +1132,8 @@ const openEditProjectModal = (project) => {
   editProjectForm.team_id = project.team_id ?? null;
   editProjectForm.customer_id = project.customer_id ?? null;
   editProjectForm.project_manager_id = project.project_manager_id ?? null;
+  editProjectForm.start_date = project.start_date ?? null;
+  editProjectForm.end_date = project.end_date ?? null;
   editProjectForm.mentions = Array.isArray(project.mentions) ? [...project.mentions] : [];
   editProjectForm.selected_project_id = selectedProjectId.value;
   editProjectForm.clearErrors();
@@ -922,6 +1150,8 @@ const closeEditProjectModal = () => {
   editProjectForm.team_id = null;
   editProjectForm.customer_id = null;
   editProjectForm.project_manager_id = null;
+  editProjectForm.start_date = null;
+  editProjectForm.end_date = null;
   editProjectForm.mentions = [];
   editProjectForm.selected_project_id = selectedProjectId.value;
 };
@@ -1315,7 +1545,8 @@ const deleteProject = (projectId) => {
 
         <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div class="mb-5 border-b border-gray-100 pb-4">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
               <h3 class="text-lg font-semibold text-gray-900">Project List</h3>
               <button
                 type="button"
@@ -1327,15 +1558,51 @@ const deleteProject = (projectId) => {
                   <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                 </svg>
               </button>
+              </div>
+              <div class="relative inline-block">
+                <div class="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+                  <button
+                    type="button"
+                    class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
+                    :class="projectListView === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                    @click="projectListView = 'list'"
+                  >
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
+                    :class="projectListView === 'gantt' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                    @click="projectListView = 'gantt'"
+                  >
+                    Gantt
+                  </button>
+                </div>
+                <div v-show="projectListView === 'gantt'" class="absolute -left-[120px] top-full mt-2 inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 whitespace-nowrap">
+                  <button
+                    v-for="perspective in ['year', 'month', 'week', 'day']"
+                    :key="perspective"
+                    type="button"
+                    class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
+                    :class="ganttPerspective === perspective ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                    @click="ganttPerspective = perspective"
+                  >
+                    {{ perspective.charAt(0).toUpperCase() + perspective.slice(1) }}
+                  </button>
+                </div>
+              </div>
             </div>
             <p class="text-sm text-gray-500">Manage projects and select one to view its board.</p>
           </div>
 
-          <div class="overflow-x-auto rounded-lg border border-gray-200">
+          <div class="min-h-[520px]" :style="{ minHeight: `${projectListViewportHeight}px` }">
+          <div v-if="projectListView === 'list'" class="h-full overflow-x-auto rounded-lg border border-gray-200">
             <table class="min-w-full text-left text-sm">
               <thead class="bg-gray-50">
                 <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
                   <th class="px-3 py-2">Project</th>
+                  <th class="px-3 py-2">Start</th>
+                  <th class="px-3 py-2">End</th>
                   <th class="px-3 py-2">Tasks</th>
                   <th class="px-3 py-2">Completion</th>
                   <th class="px-3 py-2 text-right">Actions</th>
@@ -1356,6 +1623,8 @@ const deleteProject = (projectId) => {
                     <p v-if="project.description" class="text-xs text-gray-500">{{ project.description }}</p>
                     <p v-if="project.clipboard_text" class="mt-1 line-clamp-2 text-xs text-indigo-700">Clipboard: {{ project.clipboard_text }}</p>
                   </td>
+                  <td class="px-3 py-3 text-gray-600">{{ project.start_date ?? '-' }}</td>
+                  <td class="px-3 py-3 text-gray-600">{{ project.end_date ?? '-' }}</td>
                   <td class="px-3 py-3 text-gray-600">{{ project.done_notes_count }} / {{ project.notes_count }}</td>
                   <td class="px-3 py-3">
                     <div class="flex items-center gap-2">
@@ -1409,6 +1678,86 @@ const deleteProject = (projectId) => {
             </table>
           </div>
 
+          <div v-else class="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
+            <div v-if="ganttRange" class="rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600">
+              Timeline range: {{ ganttRange.start.toISOString().slice(0, 10) }} to {{ ganttRange.end.toISOString().slice(0, 10) }} ({{ ganttRange.totalDays }} days)
+            </div>
+
+            <div v-if="ganttRange" class="rounded-md border border-gray-200 bg-white">
+              <div class="grid border-b border-gray-200 bg-gray-50 md:grid-cols-[220px_minmax(0,1fr)]">
+                <div class="border-r border-gray-200 p-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Timeline Scale</div>
+                <div class="relative">
+                  <div v-if="['year', 'month', 'week'].includes(ganttPerspective)" class="relative h-7 border-b border-gray-200">
+                    <div v-for="segment in yearSegments" :key="segment.key" class="absolute inset-y-0 overflow-hidden border-r border-gray-300/70" :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }">
+                      <span class="pl-1 text-[10px] font-semibold text-gray-700">{{ segment.label }}</span>
+                    </div>
+                  </div>
+                  <div v-if="['month', 'week'].includes(ganttPerspective)" class="relative h-7 border-b border-gray-200 bg-gray-50/70">
+                    <div v-for="segment in monthSegments" :key="segment.key" class="absolute inset-y-0 overflow-hidden border-r border-gray-300/60" :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }">
+                      <span class="pl-1 text-[10px] font-medium text-gray-600">{{ segment.label }}</span>
+                    </div>
+                  </div>
+                  <div v-if="ganttPerspective === 'week'" class="relative h-7 border-b border-gray-200 bg-gray-50/50">
+                    <div v-for="segment in weekSegments" :key="segment.key" class="absolute inset-y-0 overflow-hidden border-r border-blue-200" :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }">
+                      <span class="pl-1 text-[10px] font-medium text-blue-700">{{ segment.label }}</span>
+                    </div>
+                  </div>
+                  <div class="relative h-8 bg-white">
+                    <div
+                      v-for="marker in dayMarkers"
+                      :key="`day-ruler-${marker.index}`"
+                      class="absolute inset-y-0"
+                      :style="{ left: `${marker.offsetPercent}%` }"
+                    >
+                      <div class="h-full border-l" :class="marker.isYearStart ? 'border-gray-400' : marker.isMonthStart ? 'border-gray-300' : marker.isWeekStart ? 'border-blue-300' : 'border-gray-200/80'"></div>
+                      <span v-if="marker.showDayLabel" class="absolute left-0 top-0 -translate-x-1/2 text-[9px] font-medium text-gray-500">{{ marker.day }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <div
+                v-for="project in ganttRows"
+                :key="`gantt-${project.id}`"
+                class="grid gap-2 rounded-md border border-gray-200 p-2 md:grid-cols-[220px_minmax(0,1fr)]"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-gray-900">{{ project.name }}</p>
+                  <p class="text-xs text-gray-500">
+                    <template v-if="project.hasSchedule">
+                      {{ project.start_date }} to {{ project.end_date }} · {{ project.durationDays }} days
+                    </template>
+                    <template v-else>
+                      No schedule yet
+                    </template>
+                  </p>
+                </div>
+                <div class="relative h-8 overflow-hidden rounded bg-gray-100">
+                  <div
+                    v-for="marker in dayMarkers"
+                    :key="`day-row-${project.id}-${marker.index}`"
+                    class="absolute inset-y-0"
+                    :style="{ left: `${marker.offsetPercent}%` }"
+                  >
+                    <div class="h-full border-l" :class="marker.isYearStart ? 'border-gray-400/70' : marker.isMonthStart ? 'border-gray-300/70' : marker.isWeekStart ? 'border-blue-300/70' : 'border-gray-200/60'"></div>
+                  </div>
+                  <Link
+                    v-if="project.hasSchedule"
+                    :href="route('projects.index', { project: project.id })"
+                    class="absolute top-1 h-6 rounded-md bg-blue-500 px-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                    :style="{ left: `${project.offsetPercent}%`, width: `max(${project.widthPercent}%, 4%)` }"
+                  >
+                    {{ project.completion_percentage }}%
+                  </Link>
+                  <span v-else class="absolute inset-y-0 left-2 inline-flex items-center text-xs text-gray-400">Add start/end dates</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+
 
         </div>
 
@@ -1439,6 +1788,8 @@ const deleteProject = (projectId) => {
               <span v-if="selectedProject.team_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Team: {{ selectedProject.team_name }}</span>
               <span v-if="selectedProject.customer_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Customer: {{ selectedProject.customer_name }}</span>
               <span v-if="selectedProject.project_manager_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Manager: {{ selectedProject.project_manager_name }}</span>
+              <span v-if="selectedProject.start_date" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Start: {{ selectedProject.start_date }}</span>
+              <span v-if="selectedProject.end_date" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">End: {{ selectedProject.end_date }}</span>
             </div>
             <div v-if="selectedProject.mentions?.length" class="mt-2 flex flex-wrap gap-2">
               <span
@@ -1729,6 +2080,18 @@ const deleteProject = (projectId) => {
                             </option>
                           </select>
                         </div>
+                        <div>
+                          <label class="mb-1 block text-xs font-medium text-gray-700">Estimated hours</label>
+                          <input
+                            v-model.number="editForm.estimated_time_hours"
+                            type="number"
+                            min="0.25"
+                            max="24"
+                            step="0.25"
+                            class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          >
+                          <p v-if="editForm.errors.estimated_time_hours" class="mt-1 text-xs text-red-600">{{ editForm.errors.estimated_time_hours }}</p>
+                        </div>
                         <div class="flex justify-end gap-2">
                           <button
                             type="button"
@@ -1806,6 +2169,10 @@ const deleteProject = (projectId) => {
                           @{{ mention.type }}/{{ mention.name }}
                         </span>
                       </div>
+
+                      <p v-if="note.estimated_time_hours !== null && note.estimated_time_hours !== undefined" class="mt-2 text-xs font-semibold text-amber-700">
+                        Estimate: {{ note.estimated_time_hours }}h
+                      </p>
 
                       <div v-if="note.status === 'in_progress'" class="mt-2">
                         <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
@@ -1939,6 +2306,19 @@ const deleteProject = (projectId) => {
               <option v-for="user in userOptions" :key="`create-manager-${user.id}`" :value="user.id">{{ user.name }}</option>
             </select>
             <p v-if="createProjectForm.errors.project_manager_id" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.project_manager_id }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Start date (optional)</label>
+              <input v-model="createProjectForm.start_date" type="date" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <p v-if="createProjectForm.errors.start_date" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.start_date }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">End date (optional)</label>
+              <input v-model="createProjectForm.end_date" type="date" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <p v-if="createProjectForm.errors.end_date" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.end_date }}</p>
+            </div>
           </div>
 
           <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
@@ -2166,6 +2546,19 @@ const deleteProject = (projectId) => {
               <option v-for="user in userOptions" :key="`edit-manager-${user.id}`" :value="user.id">{{ user.name }}</option>
             </select>
             <p v-if="editProjectForm.errors.project_manager_id" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.project_manager_id }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Start date (optional)</label>
+              <input v-model="editProjectForm.start_date" type="date" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <p v-if="editProjectForm.errors.start_date" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.start_date }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">End date (optional)</label>
+              <input v-model="editProjectForm.end_date" type="date" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <p v-if="editProjectForm.errors.end_date" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.end_date }}</p>
+            </div>
           </div>
 
           <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
@@ -2484,6 +2877,19 @@ const deleteProject = (projectId) => {
                   {{ step }}%
                 </option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="mb-1 block text-sm font-medium text-gray-700">Estimated hours</label>
+              <input
+                v-model.number="createForm.estimated_time_hours"
+                type="number"
+                min="0.25"
+                max="24"
+                step="0.25"
+                class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+              <p class="mt-1 text-xs text-gray-500">Defaults to {{ defaultTaskEstimateHours }}h for your next task today. You can change it.</p>
+              <p v-if="createForm.errors.estimated_time_hours" class="mt-1 text-xs text-red-600">{{ createForm.errors.estimated_time_hours }}</p>
             </div>
           </div>
 
