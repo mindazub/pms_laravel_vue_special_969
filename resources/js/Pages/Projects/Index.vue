@@ -457,14 +457,17 @@ onMounted(async () => {
   await Promise.all([loadTeams(), loadCustomers(), loadManagedUsers()]);
   document.addEventListener('mousemove', onDocumentMousemove);
   document.addEventListener('mouseup', onDocumentMouseup);
+  document.addEventListener('keydown', onDocumentKeydown);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousemove', onDocumentMousemove);
   document.removeEventListener('mouseup', onDocumentMouseup);
+  document.removeEventListener('keydown', onDocumentKeydown);
 });
 
 const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const ganttFocusDate = ref(normalizeDate(new Date()));
 
 const startOfWeek = (date) => {
   const normalized = normalizeDate(date);
@@ -484,6 +487,65 @@ const currentWeekStart = startOfWeek(today);
 const displayedWeekStart = ref(new Date(currentWeekStart));
 
 const isCurrentWeekShown = computed(() => displayedWeekStart.value.getTime() === currentWeekStart.getTime());
+
+const panGanttTimeline = (direction) => {
+  const nextFocusDate = new Date(ganttFocusDate.value);
+
+  if (ganttPerspective.value === 'year') {
+    nextFocusDate.setMonth(nextFocusDate.getMonth() + direction);
+  } else if (ganttPerspective.value === 'month') {
+    nextFocusDate.setDate(nextFocusDate.getDate() + (direction * 7));
+  } else if (ganttPerspective.value === 'week') {
+    nextFocusDate.setDate(nextFocusDate.getDate() + direction);
+  } else {
+    nextFocusDate.setHours(nextFocusDate.getHours() + direction);
+  }
+
+  ganttFocusDate.value = ganttPerspective.value === 'day' ? nextFocusDate : normalizeDate(nextFocusDate);
+};
+
+const zoomGanttTimeline = (direction) => {
+  const currentIndex = ganttPerspectiveOrder.indexOf(ganttPerspective.value);
+  const nextIndex = Math.min(ganttPerspectiveOrder.length - 1, Math.max(0, currentIndex + direction));
+
+  ganttPerspective.value = ganttPerspectiveOrder[nextIndex];
+};
+
+const shouldIgnoreGanttKeyboardShortcut = (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+};
+
+const onGanttWheel = (event) => {
+  if (projectListView.value !== 'gantt' || !event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  panGanttTimeline(event.deltaY > 0 ? 1 : -1);
+};
+
+const onDocumentKeydown = (event) => {
+  if (projectListView.value !== 'gantt' || !event.ctrlKey || shouldIgnoreGanttKeyboardShortcut(event)) {
+    return;
+  }
+
+  if (['+', '=', 'Add'].includes(event.key)) {
+    event.preventDefault();
+    zoomGanttTimeline(1);
+    return;
+  }
+
+  if (['-', '_', 'Subtract'].includes(event.key)) {
+    event.preventDefault();
+    zoomGanttTimeline(-1);
+  }
+};
 
 const weekDays = computed(() =>
   Array.from({ length: 7 }, (_, index) => {
@@ -637,6 +699,7 @@ const previewImageName = ref('');
 const expandedBoardColumn = ref(null);
 const projectListView = ref('list');
 const ganttPerspective = ref('week');
+const ganttPerspectiveOrder = ['year', 'month', 'week', 'day'];
 
 const formatFileSize = (bytes) => {
   if (!bytes || Number.isNaN(bytes)) {
@@ -701,6 +764,7 @@ const projectProgressClass = (project) =>
         : 'bg-gray-400';
 
 const DAY_MS = 86400000;
+const HOUR_MS = 3600000;
 
 // ── Gantt drag-to-move / drag-to-resize ──────────────────────────────────────
 const ganttDragOverrides = ref({}); // { [projectId]: { start_date, end_date } }
@@ -896,30 +960,37 @@ const ganttRange = computed(() => {
     return null;
   }
 
-  const today = new Date();
-  const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const focusDate = new Date(ganttFocusDate.value);
+  const dayStart = normalizeDate(focusDate);
   let start = new Date(dayStart);
   let end = new Date(dayStart);
+  let unitMs = DAY_MS;
 
   if (ganttPerspective.value === 'year') {
-    start = new Date(dayStart.getFullYear(), 0, 1);
-    end = new Date(dayStart.getFullYear(), 11, 31);
-  } else if (ganttPerspective.value === 'month') {
     start = new Date(dayStart.getFullYear(), dayStart.getMonth(), 1);
-    end = new Date(dayStart.getFullYear(), dayStart.getMonth() + 1, 0);
+    end = new Date(start);
+    end.setMonth(end.getMonth() + 12);
+    end.setDate(end.getDate() - 1);
+  } else if (ganttPerspective.value === 'month') {
+    start = startOfIsoWeek(dayStart);
+    end = new Date(start.getTime() + (27 * DAY_MS));
   } else if (ganttPerspective.value === 'week') {
-    const day = dayStart.getDay();
-    const offsetToMonday = day === 0 ? -6 : 1 - day;
-    start = new Date(dayStart.getTime() + (offsetToMonday * DAY_MS));
+    start = new Date(dayStart);
     end = new Date(start.getTime() + (6 * DAY_MS));
+  } else {
+    start = new Date(focusDate);
+    start.setMinutes(0, 0, 0);
+    end = new Date(start.getTime() + (23 * HOUR_MS));
+    unitMs = HOUR_MS;
   }
 
-  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
+  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / unitMs) + 1);
 
   return {
     start,
     end,
     totalDays,
+    unitMs,
   };
 });
 
@@ -930,6 +1001,8 @@ const ganttRows = computed(() => {
 
   const rangeStart = ganttRange.value.start.getTime();
   const rangeDays = ganttRange.value.totalDays;
+  const rangeEnd = ganttRange.value.end.getTime();
+  const rangeUnitMs = ganttRange.value.unitMs ?? DAY_MS;
 
   return props.projects.data.map((project) => {
     const override = ganttDragOverrides.value[project.id];
@@ -953,13 +1026,17 @@ const ganttRows = computed(() => {
       };
     }
 
-    const clampedStart = start.getTime() < rangeStart ? new Date(rangeStart) : start;
-    const clampedEnd = end.getTime() > ganttRange.value.end.getTime() ? ganttRange.value.end : end;
-    const hasVisibleSchedule = clampedStart.getTime() <= clampedEnd.getTime();
-    const offsetDays = hasVisibleSchedule ? Math.max(0, Math.round((clampedStart.getTime() - rangeStart) / DAY_MS)) : 0;
+    const projectStartTime = start.getTime();
+    const projectEndTime = ganttPerspective.value === 'day'
+      ? end.getTime() + DAY_MS - HOUR_MS
+      : end.getTime();
+    const clampedStartTime = Math.max(projectStartTime, rangeStart);
+    const clampedEndTime = Math.min(projectEndTime, rangeEnd);
+    const hasVisibleSchedule = clampedStartTime <= clampedEndTime;
+    const offsetDays = hasVisibleSchedule ? Math.max(0, Math.round((clampedStartTime - rangeStart) / rangeUnitMs)) : 0;
     const durationDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
     const visibleDurationDays = hasVisibleSchedule
-      ? Math.max(1, Math.round((clampedEnd.getTime() - clampedStart.getTime()) / DAY_MS) + 1)
+      ? Math.max(1, Math.round((clampedEndTime - clampedStartTime) / rangeUnitMs) + 1)
       : 0;
 
     return {
@@ -1183,15 +1260,18 @@ const hourSegments = computed(() => {
   }
 
   const segments = [];
+  const startTime = ganttRange.value.start.getTime();
 
   for (let hour = 0; hour < 24; hour += 1) {
+    const current = new Date(startTime + (hour * HOUR_MS));
+
     segments.push({
-      key: `hour-${hour}`,
-      label: `${String(hour).padStart(2, '0')}:00`,
+      key: `hour-${current.toISOString()}`,
+      label: `${String(current.getHours()).padStart(2, '0')}:00`,
       offsetPercent: (hour / 24) * 100,
       widthPercent: (1 / 24) * 100,
-      isMajor: hour % 6 === 0,
-      isCurrent: hour === currentTimelineHour,
+      isMajor: current.getHours() % 6 === 0,
+      isCurrent: hour === 0,
     });
   }
 
@@ -2025,7 +2105,7 @@ const deleteProject = (projectId) => {
             </table>
           </div>
 
-          <div v-else class="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
+          <div v-else class="space-y-3 rounded-lg border border-gray-200 bg-white p-3" @wheel="onGanttWheel">
             <div v-if="ganttRange" class="rounded-md border border-gray-200 bg-white">
               <div class="overflow-hidden rounded-md border-b border-gray-200 bg-gray-50">
                 <div class="relative h-9 border-b border-gray-200/80 bg-gray-50">
