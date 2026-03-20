@@ -31,6 +31,12 @@ const navigationLinks = computed(() => [
         active: route().current('projects.index'),
     },
     {
+        year: '2026',
+        label: 'People',
+        href: route('people.index'),
+        active: route().current('people.index'),
+    },
+    {
         year: '2025',
         label: 'Projects 2025',
         href: route('projects.2025'),

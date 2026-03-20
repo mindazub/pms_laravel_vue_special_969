@@ -4,6 +4,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\Dashboard2025Controller;
 use App\Http\Controllers\MentionSuggestionController;
 use App\Http\Controllers\NoteController;
+use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects2025Controller;
@@ -18,6 +19,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('projects', ProjectController::class)
         ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('/people', [PeopleController::class, 'index'])
+        ->name('people.index');
 
     Route::resource('teams', TeamController::class)
         ->only(['index', 'store', 'update', 'destroy']);
