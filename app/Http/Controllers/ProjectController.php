@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -188,9 +189,11 @@ class ProjectController extends Controller
             ->with('success', 'Project created successfully.');
     }
 
-    public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
+    public function update(UpdateProjectRequest $request, Project $project): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $project);
+
+        $validated = $request->validated();
 
         $attachments = $project->attachments ?? [];
 
@@ -202,19 +205,29 @@ class ProjectController extends Controller
         }
 
         $project->update([
-            'name' => $request->validated('name'),
-            'description' => $request->validated('description'),
-            'clipboard_text' => $request->validated('clipboard_text'),
+            'name' => $validated['name'] ?? $project->name,
+            'description' => array_key_exists('description', $validated) ? $validated['description'] : $project->description,
+            'clipboard_text' => array_key_exists('clipboard_text', $validated) ? $validated['clipboard_text'] : $project->clipboard_text,
             'attachments' => $attachments,
-            'mentions' => $request->validated('mentions') ?? ($project->mentions ?? []),
-            'team_id' => $request->validated('team_id'),
-            'customer_id' => $request->validated('customer_id'),
-            'project_manager_id' => $request->validated('project_manager_id') ?? $project->project_manager_id,
-            'start_date' => $request->validated('start_date'),
-            'end_date' => $request->validated('end_date'),
+            'mentions' => array_key_exists('mentions', $validated) ? $validated['mentions'] : ($project->mentions ?? []),
+            'team_id' => array_key_exists('team_id', $validated) ? $validated['team_id'] : $project->team_id,
+            'customer_id' => array_key_exists('customer_id', $validated) ? $validated['customer_id'] : $project->customer_id,
+            'project_manager_id' => array_key_exists('project_manager_id', $validated) ? $validated['project_manager_id'] : $project->project_manager_id,
+            'start_date' => array_key_exists('start_date', $validated) ? $validated['start_date'] : $project->start_date,
+            'end_date' => array_key_exists('end_date', $validated) ? $validated['end_date'] : $project->end_date,
         ]);
 
-        $selectedProjectId = (int) ($request->validated('selected_project_id') ?? $project->id);
+        $selectedProjectId = (int) ($validated['selected_project_id'] ?? $project->id);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Project updated successfully.',
+                'project_id' => $project->id,
+                'selected_project_id' => $selectedProjectId,
+                'start_date' => $project->fresh()->start_date?->toDateString(),
+                'end_date' => $project->fresh()->end_date?->toDateString(),
+            ]);
+        }
 
         return redirect()
             ->route('projects.index', ['project' => $selectedProjectId])

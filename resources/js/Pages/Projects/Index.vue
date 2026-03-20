@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   projects: {
@@ -455,6 +455,13 @@ const saveUserRole = async (userId) => {
 
 onMounted(async () => {
   await Promise.all([loadTeams(), loadCustomers(), loadManagedUsers()]);
+  document.addEventListener('mousemove', onDocumentMousemove);
+  document.addEventListener('mouseup', onDocumentMouseup);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', onDocumentMousemove);
+  document.removeEventListener('mouseup', onDocumentMouseup);
 });
 
 const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -695,6 +702,159 @@ const projectProgressClass = (project) =>
 
 const DAY_MS = 86400000;
 
+// ── Gantt drag-to-move / drag-to-resize ──────────────────────────────────────
+const ganttDragOverrides = ref({}); // { [projectId]: { start_date, end_date } }
+
+const dragState = ref(null);
+const suppressGanttBarClickUntil = ref(0);
+/*
+  dragState shape:
+  {
+    projectId,
+    type: 'move' | 'resize-left' | 'resize-right',
+    startX: Number,           // clientX where drag began
+    originalStart: Date,      // project start_date at drag start
+    originalEnd: Date,        // project end_date at drag start
+    containerWidth: Number,   // px width of the bar container element
+    hasMoved: Boolean,        // whether mouse moved enough to count as drag
+  }
+*/
+
+const onGanttBarMousedown = (event, project, type) => {
+  if (event.button !== 0) {
+    return;
+  }
+
+  const bar = event.currentTarget.closest('.gantt-bar-container');
+  const container = bar?.parentElement;
+
+  if (!container) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const originalStart = parseIsoDate(ganttDragOverrides.value[project.id]?.start_date ?? project.start_date);
+  const originalEnd = parseIsoDate(ganttDragOverrides.value[project.id]?.end_date ?? project.end_date);
+
+  dragState.value = {
+    projectId: project.id,
+    type,
+    startX: event.clientX,
+    originalStart,
+    originalEnd,
+    containerWidth: container.getBoundingClientRect().width,
+    hasMoved: false,
+  };
+
+  document.body.classList.add('gantt-dragging');
+};
+
+const onGanttBarClick = (event, project) => {
+  if (dragState.value?.hasMoved || Date.now() < suppressGanttBarClickUntil.value) {
+    event.preventDefault();
+    return;
+  }
+
+  router.visit(route('projects.index', { project: project.id }));
+};
+
+const onDocumentMousemove = (event) => {
+  if (!dragState.value || !ganttRange.value) {
+    return;
+  }
+
+  const dx = event.clientX - dragState.value.startX;
+
+  if (Math.abs(dx) < 3) {
+    return;
+  }
+
+  dragState.value.hasMoved = true;
+
+  const totalDays = ganttRange.value.totalDays;
+  const dayWidth = dragState.value.containerWidth / totalDays;
+  const deltaDays = Math.round(dx / dayWidth);
+
+  const { type, originalStart, originalEnd } = dragState.value;
+  let newStart = new Date(originalStart);
+  let newEnd = new Date(originalEnd);
+
+  if (type === 'move') {
+    newStart = new Date(originalStart.getTime() + deltaDays * DAY_MS);
+    newEnd = new Date(originalEnd.getTime() + deltaDays * DAY_MS);
+  } else if (type === 'resize-left') {
+    newStart = new Date(originalStart.getTime() + deltaDays * DAY_MS);
+    // Don't allow start to pass end (keep min 1 day)
+    if (newStart >= newEnd) {
+      newStart = new Date(newEnd.getTime() - DAY_MS);
+    }
+  } else if (type === 'resize-right') {
+    newEnd = new Date(originalEnd.getTime() + deltaDays * DAY_MS);
+    if (newEnd <= newStart) {
+      newEnd = new Date(newStart.getTime() + DAY_MS);
+    }
+  }
+
+  ganttDragOverrides.value = {
+    ...ganttDragOverrides.value,
+    [dragState.value.projectId]: {
+      start_date: formatIsoDate(newStart),
+      end_date: formatIsoDate(newEnd),
+    },
+  };
+};
+
+const onDocumentMouseup = async () => {
+  if (!dragState.value) {
+    return;
+  }
+
+  document.body.classList.remove('gantt-dragging');
+
+  const { projectId, hasMoved } = dragState.value;
+  dragState.value = null;
+
+  if (!hasMoved) {
+    return;
+  }
+
+  suppressGanttBarClickUntil.value = Date.now() + 250;
+
+  const override = ganttDragOverrides.value[projectId];
+
+  if (!override) {
+    return;
+  }
+
+  const project = props.projects.data.find((p) => p.id === projectId);
+
+  if (!project) {
+    return;
+  }
+
+  try {
+    await window.axios.patch(`/projects/${projectId}`, {
+      name: project.name,
+      description: project.description ?? null,
+      clipboard_text: project.clipboard_text ?? null,
+      team_id: project.team_id ?? null,
+      customer_id: project.customer_id ?? null,
+      project_manager_id: project.project_manager_id ?? null,
+      start_date: override.start_date,
+      end_date: override.end_date,
+    });
+  } catch (error) {
+    console.error('Failed to persist gantt timeline drag update', error?.response?.data ?? error);
+    // Revert override on failure
+    const overrides = { ...ganttDragOverrides.value };
+    delete overrides[projectId];
+    ganttDragOverrides.value = overrides;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const parseIsoDate = (value) => {
   if (!value) {
     return null;
@@ -777,8 +937,12 @@ const ganttRows = computed(() => {
   const rangeDays = ganttRange.value.totalDays;
 
   return props.projects.data.map((project) => {
-    const start = parseIsoDate(project.start_date);
-    const end = parseIsoDate(project.end_date);
+    const override = ganttDragOverrides.value[project.id];
+    const rawStartDate = override?.start_date ?? project.start_date;
+    const rawEndDate = override?.end_date ?? project.end_date;
+
+    const start = parseIsoDate(rawStartDate);
+    const end = parseIsoDate(rawEndDate);
 
     if (!start || !end) {
       return {
@@ -789,6 +953,8 @@ const ganttRows = computed(() => {
         widthPercent: 0,
         durationDays: null,
         visibleDurationDays: null,
+        displayStartDate: rawStartDate,
+        displayEndDate: rawEndDate,
       };
     }
 
@@ -809,6 +975,8 @@ const ganttRows = computed(() => {
       widthPercent: (visibleDurationDays / rangeDays) * 100,
       durationDays,
       visibleDurationDays,
+      displayStartDate: rawStartDate,
+      displayEndDate: rawEndDate,
     };
   });
 });
@@ -1324,7 +1492,7 @@ const updateProject = () => {
   }
 
   editProjectForm.selected_project_id = selectedProjectId.value;
-  editProjectForm.patch(route('projects.update', editProjectForm.id), {
+  editProjectForm.patch(route('projects.update', { project: editProjectForm.id }), {
     preserveScroll: true,
     forceFormData: true,
     onSuccess: () => closeEditProjectModal(),
@@ -1891,7 +2059,7 @@ const deleteProject = (projectId) => {
                   <p class="text-sm font-semibold text-gray-900">{{ project.name }}</p>
                   <p class="text-xs text-gray-500">
                     <template v-if="project.hasSchedule">
-                      {{ project.start_date }} to {{ project.end_date }} · {{ project.durationDays }} days
+                      {{ project.displayStartDate }} to {{ project.displayEndDate }} · {{ project.durationDays }} days
                     </template>
                     <template v-else>
                       No schedule yet
@@ -1907,14 +2075,30 @@ const deleteProject = (projectId) => {
                   >
                     <div class="h-full border-l" :class="marker.markerClass"></div>
                   </div>
-                  <Link
+                  <!-- Draggable bar -->
+                  <div
                     v-if="project.hasVisibleSchedule"
-                    :href="route('projects.index', { project: project.id })"
-                    class="absolute top-1 h-6 rounded-md bg-blue-500 px-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                    class="gantt-bar-container absolute top-1 h-6 select-none rounded-md bg-blue-500 text-xs font-semibold text-white"
+                    :class="dragState?.projectId === project.id ? 'cursor-grabbing opacity-90 ring-2 ring-blue-300' : 'cursor-grab hover:bg-blue-600'"
                     :style="{ left: `${project.offsetPercent}%`, width: `max(${project.widthPercent}%, 4%)` }"
+                    @mousedown.stop="onGanttBarMousedown($event, project, 'move')"
+                    @click.stop="onGanttBarClick($event, project)"
                   >
-                    {{ project.completion_percentage }}%
-                  </Link>
+                    <!-- Left resize handle -->
+                    <div
+                      class="absolute inset-y-0 left-0 w-2 cursor-col-resize rounded-l-md hover:bg-blue-300/40"
+                      @mousedown.stop="onGanttBarMousedown($event, project, 'resize-left')"
+                    ></div>
+                    <!-- Bar label -->
+                    <span class="pointer-events-none flex h-full items-center justify-center px-3">
+                      {{ project.completion_percentage }}%
+                    </span>
+                    <!-- Right resize handle -->
+                    <div
+                      class="absolute inset-y-0 right-0 w-2 cursor-col-resize rounded-r-md hover:bg-blue-300/40"
+                      @mousedown.stop="onGanttBarMousedown($event, project, 'resize-right')"
+                    ></div>
+                  </div>
                   <span v-else-if="project.hasSchedule" class="absolute inset-y-0 left-2 inline-flex items-center text-xs text-gray-400">Outside current {{ ganttPerspective }} range</span>
                   <span v-else class="absolute inset-y-0 left-2 inline-flex items-center text-xs text-gray-400">Add start/end dates</span>
                 </div>
@@ -3099,3 +3283,14 @@ const deleteProject = (projectId) => {
     </div>
   </AuthenticatedLayout>
 </template>
+
+<style scoped>
+/* Prevent text selection on the whole page while dragging a Gantt bar */
+:global(body.gantt-dragging) {
+  user-select: none;
+  cursor: grabbing !important;
+}
+:global(body.gantt-dragging *) {
+  cursor: grabbing !important;
+}
+</style>

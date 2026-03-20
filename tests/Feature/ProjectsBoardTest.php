@@ -201,4 +201,37 @@ class ProjectsBoardTest extends TestCase
         $secondNote = Note::query()->where('title', 'Second task today')->firstOrFail();
         $this->assertSame(4.0, (float) $secondNote->estimated_time_hours);
     }
+
+    public function test_project_update_returns_json_for_xhr_and_persists_schedule_dates(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->createOne();
+        $project = Project::factory()->for($user)->createOne([
+            'name' => 'Timeline test',
+            'start_date' => '2026-03-10',
+            'end_date' => '2026-03-20',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withHeader('Accept', 'application/json')
+            ->patch(route('projects.update', ['project' => $project->id]), [
+                'start_date' => '2026-03-12',
+                'end_date' => '2026-03-22',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'message' => 'Project updated successfully.',
+                'project_id' => $project->id,
+                'start_date' => '2026-03-12',
+                'end_date' => '2026-03-22',
+            ]);
+
+        $project->refresh();
+
+        $this->assertSame('2026-03-12', $project->start_date?->toDateString());
+        $this->assertSame('2026-03-22', $project->end_date?->toDateString());
+    }
 }
