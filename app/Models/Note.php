@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Note extends Model
 {
@@ -30,12 +31,14 @@ class Note extends Model
     protected $fillable = [
         'user_id',
         'project_id',
+        'team_id',
         'title',
         'content',
         'clipboard_text',
         'status',
         'progress',
         'attachments',
+        'mentions',
         'scope',
         'work_year',
         'work_week_label',
@@ -56,6 +59,7 @@ class Note extends Model
     protected $casts = [
         'progress' => 'integer',
         'attachments' => 'array',
+        'mentions' => 'array',
         'work_year' => 'integer',
         'work_week_number' => 'integer',
         'estimated_time_hours' => 'float',
@@ -71,6 +75,17 @@ class Note extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'note_user_assignees')
+            ->withTimestamps();
     }
 
     public function scopeWorkload2025(Builder $query): Builder

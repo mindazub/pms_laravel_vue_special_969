@@ -2,23 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProjectRequest;
+use App\Http\Requests\UpdateProjectRequest;
+use App\Models\Customer;
 use App\Models\Note;
 use App\Models\Project;
-use Illuminate\Http\UploadedFile;
+use App\Models\Team;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProjectController extends Controller
 {
-    /**
-     * Display a listing of projects and optionally a selected project's board.
-     */
     public function index(Request $request): Response
     {
-        $projects = $request->user()
-            ->projects()
+        $projects = Project::query()
+            ->visibleTo($request->user())
+            ->with(['team:id,name', 'customer:id,name', 'projectManager:id,name'])
             ->withCount([
                 'notes',
                 'notes as done_notes_count' => fn ($query) => $query->where('status', Note::STATUS_DONE),
@@ -27,7 +30,7 @@ class ProjectController extends Controller
             ->paginate(8)
             ->withQueryString();
 
-        $projects->getCollection()->transform(function (Project $project) {
+        $projects->getCollection()->transform(function (Project $project): array {
             $totalNotes = (int) $project->notes_count;
             $doneNotes = (int) $project->done_notes_count;
             $completionPercentage = $totalNotes === 0
@@ -40,6 +43,13 @@ class ProjectController extends Controller
                 'description' => $project->description,
                 'clipboard_text' => $project->clipboard_text,
                 'attachments' => $project->attachments ?? [],
+                'mentions' => $project->mentions ?? [],
+                'team_id' => $project->team_id,
+                'team_name' => $project->team?->name,
+                'customer_id' => $project->customer_id,
+                'customer_name' => $project->customer?->name,
+                'project_manager_id' => $project->project_manager_id,
+                'project_manager_name' => $project->projectManager?->name,
                 'notes_count' => $totalNotes,
                 'done_notes_count' => $doneNotes,
                 'completion_percentage' => $completionPercentage,
@@ -49,18 +59,22 @@ class ProjectController extends Controller
 
         $selectedProject = null;
         $projectNotes = [];
-
         $selectedProjectId = $request->integer('project');
 
         if ($selectedProjectId) {
-            $project = $request->user()
-                ->projects()
+            $project = Project::query()
+                ->visibleTo($request->user())
                 ->whereKey($selectedProjectId)
                 ->withCount([
                     'notes',
                     'notes as done_notes_count' => fn ($query) => $query->where('status', Note::STATUS_DONE),
                 ])
-                ->with('notes')
+                ->with([
+                    'team:id,name',
+                    'customer:id,name',
+                    'projectManager:id,name',
+                    'notes.assignees:id,name',
+                ])
                 ->first();
 
             if ($project) {
@@ -76,6 +90,13 @@ class ProjectController extends Controller
                     'description' => $project->description,
                     'clipboard_text' => $project->clipboard_text,
                     'attachments' => $project->attachments ?? [],
+                    'mentions' => $project->mentions ?? [],
+                    'team_id' => $project->team_id,
+                    'team_name' => $project->team?->name,
+                    'customer_id' => $project->customer_id,
+                    'customer_name' => $project->customer?->name,
+                    'project_manager_id' => $project->project_manager_id,
+                    'project_manager_name' => $project->projectManager?->name,
                     'notes_count' => $totalNotes,
                     'done_notes_count' => $doneNotes,
                     'completion_percentage' => $completionPercentage,
@@ -85,17 +106,34 @@ class ProjectController extends Controller
                 $projectNotes = $project->notes
                     ->sortByDesc('created_at')
                     ->values()
-                    ->map(fn (Note $note) => [
+                    ->map(fn (Note $note): array => [
                         'id' => $note->id,
                         'title' => $note->title,
                         'content' => $note->content,
                         'clipboard_text' => $note->clipboard_text,
                         'attachments' => $note->attachments ?? [],
+                        'mentions' => $note->mentions ?? [],
                         'status' => $note->status,
                         'progress' => (int) $note->progress,
+                        'assignee_ids' => $note->assignees->pluck('id')->values()->all(),
+                        'assignee_names' => $note->assignees->pluck('name')->values()->all(),
                     ]);
             }
         }
+
+        $teams = Team::query()
+            ->visibleTo($request->user())
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $customers = Customer::query()
+            ->visibleTo($request->user())
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
@@ -103,35 +141,26 @@ class ProjectController extends Controller
             'notes' => $projectNotes,
             'statuses' => Note::STATUSES,
             'progressSteps' => [0, 25, 50, 75, 100],
+            'teams' => $teams,
+            'customers' => $customers,
+            'users' => $users,
         ]);
     }
 
-    /**
-     * Store a newly created project.
-     */
-    public function store(Request $request)
+    public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('projects', 'name')->where(
-                    fn ($query) => $query->where('user_id', $request->user()->id)
-                ),
-            ],
-            'description' => ['nullable', 'string'],
-            'clipboard_text' => ['nullable', 'string'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
-
-        $project = $request->user()->projects()->create([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'clipboard_text' => $validated['clipboard_text'] ?? null,
+        $projectData = [
+            'name' => $request->validated('name'),
+            'description' => $request->validated('description'),
+            'clipboard_text' => $request->validated('clipboard_text'),
             'attachments' => [],
-        ]);
+            'mentions' => $request->validated('mentions') ?? [],
+            'team_id' => $request->validated('team_id'),
+            'customer_id' => $request->validated('customer_id'),
+            'project_manager_id' => $request->validated('project_manager_id') ?? $request->user()->id,
+        ];
+
+        $project = $request->user()->projects()->create($projectData);
 
         if ($request->hasFile('attachments')) {
             $project->update([
@@ -144,66 +173,47 @@ class ProjectController extends Controller
             ->with('success', 'Project created successfully.');
     }
 
-    /**
-     * Update the specified project.
-     */
-    public function update(Request $request, Project $project)
+    public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $ownedProject = $request->user()->projects()->whereKey($project->id)->firstOrFail();
+        $this->authorize('update', $project);
 
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('projects', 'name')
-                    ->where(fn ($query) => $query->where('user_id', $request->user()->id))
-                    ->ignore($ownedProject->id),
-            ],
-            'description' => ['nullable', 'string'],
-            'clipboard_text' => ['nullable', 'string'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
-            'selected_project_id' => ['nullable', 'integer'],
-        ]);
-
-        $attachments = $ownedProject->attachments ?? [];
+        $attachments = $project->attachments ?? [];
 
         if ($request->hasFile('attachments')) {
             $attachments = array_merge(
                 $attachments,
-                $this->storeUploadedFiles($request->file('attachments'), "projects/{$ownedProject->id}")
+                $this->storeUploadedFiles($request->file('attachments'), "projects/{$project->id}")
             );
         }
 
-        $ownedProject->update([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'clipboard_text' => $validated['clipboard_text'] ?? null,
+        $project->update([
+            'name' => $request->validated('name'),
+            'description' => $request->validated('description'),
+            'clipboard_text' => $request->validated('clipboard_text'),
             'attachments' => $attachments,
+            'mentions' => $request->validated('mentions') ?? ($project->mentions ?? []),
+            'team_id' => $request->validated('team_id'),
+            'customer_id' => $request->validated('customer_id'),
+            'project_manager_id' => $request->validated('project_manager_id') ?? $project->project_manager_id,
         ]);
 
-        $selectedProjectId = (int) ($validated['selected_project_id'] ?? $ownedProject->id);
+        $selectedProjectId = (int) ($request->validated('selected_project_id') ?? $project->id);
 
         return redirect()
             ->route('projects.index', ['project' => $selectedProjectId])
             ->with('success', 'Project updated successfully.');
     }
 
-    /**
-     * Remove the specified project.
-     */
-    public function destroy(Request $request, Project $project)
+    public function destroy(Request $request, Project $project): RedirectResponse
     {
-        $ownedProject = $request->user()->projects()->whereKey($project->id)->firstOrFail();
+        $this->authorize('delete', $project);
 
         $selectedProjectId = $request->integer('selected_project_id');
+        $project->delete();
 
-        $ownedProject->delete();
+        $fallbackProjectId = Project::query()->visibleTo($request->user())->latest('id')->value('id');
 
-        $fallbackProjectId = $request->user()->projects()->latest('id')->value('id');
-
-        if ($selectedProjectId && $selectedProjectId !== $ownedProject->id) {
+        if ($selectedProjectId && $selectedProjectId !== $project->id) {
             $fallbackProjectId = $selectedProjectId;
         }
 
@@ -223,7 +233,7 @@ class ProjectController extends Controller
         }
 
         return collect($files)
-            ->map(function (UploadedFile $file) use ($directory) {
+            ->map(function (UploadedFile $file) use ($directory): array {
                 $path = $file->store($directory, 'public');
 
                 return [

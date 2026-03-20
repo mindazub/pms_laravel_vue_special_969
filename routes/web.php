@@ -1,10 +1,14 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\Dashboard2025Controller;
+use App\Http\Controllers\MentionSuggestionController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects2025Controller;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\UserRoleController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -14,6 +18,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('projects', ProjectController::class)
         ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::resource('teams', TeamController::class)
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::patch('/teams/{team}/members', [TeamController::class, 'syncMembers'])
+        ->name('teams.members.sync');
+
+    Route::resource('customers', CustomerController::class)
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('/mentions/suggestions', MentionSuggestionController::class)
+        ->name('mentions.suggestions');
+
+    Route::get('/users/roles', [UserRoleController::class, 'index'])
+        ->name('users.roles.index');
+
+    Route::put('/users/{user}/role', [UserRoleController::class, 'update'])
+        ->name('users.roles.update');
 
     Route::get('/projects-2025', [Projects2025Controller::class, 'index'])->name('projects.2025');
     Route::post('/projects-2025/import', [Projects2025Controller::class, 'import'])->name('projects.2025.import');

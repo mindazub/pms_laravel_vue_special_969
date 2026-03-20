@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   projects: {
@@ -23,6 +23,18 @@ const props = defineProps({
   progressSteps: {
     type: Array,
     default: () => [0, 25, 50, 75, 100],
+  },
+  teams: {
+    type: Array,
+    default: () => [],
+  },
+  customers: {
+    type: Array,
+    default: () => [],
+  },
+  users: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -51,7 +63,395 @@ const columns = computed(() =>
   }))
 );
 
+const page = usePage();
 const selectedProjectId = computed(() => props.selectedProject?.id ?? null);
+const managedTeams = ref([]);
+const managedCustomers = ref([]);
+const managedUsers = ref([]);
+const teamOptions = computed(() => managedTeams.value ?? []);
+const customerOptions = computed(() => managedCustomers.value ?? []);
+const userOptions = computed(() => props.users ?? []);
+const teamRoleOptions = ['Manager', 'HR', 'User'];
+const globalRoleOptions = ['Admin', 'CEO', 'Manager', 'HR', 'User'];
+const currentUserIsPrivileged = computed(() => {
+  const roleNames = page.props.auth?.user?.role_names ?? [];
+
+  return roleNames.includes('Admin') || roleNames.includes('CEO');
+});
+
+const teamForm = ref({
+  id: null,
+  name: '',
+  description: '',
+  customer_id: null,
+  manager_id: null,
+  member_ids: [],
+});
+const teamFormErrors = ref({});
+const teamFormSaving = ref(false);
+const customerForm = ref({
+  id: null,
+  name: '',
+  description: '',
+});
+const customerFormErrors = ref({});
+const customerFormSaving = ref(false);
+const selectedTeamId = ref(null);
+const teamMembersForm = ref([]);
+const teamMembersErrors = ref({});
+const teamMembersSaving = ref(false);
+const userRoleErrors = ref({});
+const savingUserRoleIds = ref([]);
+
+const mentionTypes = [
+  { label: 'User', value: 'User', queryValue: 'user' },
+  { label: 'Team', value: 'Team', queryValue: 'team' },
+  { label: 'Customer', value: 'Customer', queryValue: 'customer' },
+];
+
+const projectMentionType = ref('User');
+const projectMentionQuery = ref('');
+const projectMentionSuggestions = ref([]);
+const noteMentionType = ref('User');
+const noteMentionQuery = ref('');
+const noteMentionSuggestions = ref([]);
+const editNoteMentionType = ref('User');
+const editNoteMentionQuery = ref('');
+const editNoteMentionSuggestions = ref([]);
+
+const selectedTeam = computed(() =>
+  managedTeams.value.find((team) => team.id === selectedTeamId.value) ?? null
+);
+
+watch(
+  () => props.teams,
+  (teams) => {
+    managedTeams.value = (teams ?? []).map((team) => ({
+      ...team,
+      users: team.users ?? [],
+    }));
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.customers,
+  (customers) => {
+    managedCustomers.value = customers ?? [];
+  },
+  { immediate: true }
+);
+
+const addMention = (form, mention) => {
+  const candidate = {
+    id: mention.id ?? null,
+    type: mention.type,
+    name: mention.name,
+  };
+
+  const exists = (form.mentions ?? []).some((entry) =>
+    entry.type === candidate.type && entry.name === candidate.name && Number(entry.id ?? 0) === Number(candidate.id ?? 0)
+  );
+
+  if (exists) {
+    return;
+  }
+
+  form.mentions = [...(form.mentions ?? []), candidate];
+};
+
+const removeMention = (form, index) => {
+  form.mentions = (form.mentions ?? []).filter((_, entryIndex) => entryIndex !== index);
+};
+
+const fetchMentionSuggestions = async (typeValue, queryText, target) => {
+  if (!queryText.trim()) {
+    target.value = [];
+    return;
+  }
+
+  const selectedType = mentionTypes.find((item) => item.value === typeValue);
+
+  if (!selectedType) {
+    target.value = [];
+    return;
+  }
+
+  try {
+    const response = await fetch(route('mentions.suggestions', {
+      type: selectedType.queryValue,
+      q: queryText.trim(),
+    }));
+
+    if (!response.ok) {
+      target.value = [];
+      return;
+    }
+
+    target.value = await response.json();
+  } catch {
+    target.value = [];
+  }
+};
+
+const validationErrorsFrom = (error) => error?.response?.status === 422 ? (error.response.data.errors ?? {}) : {};
+
+const normalizeTeamPayload = (team) => ({
+  ...team,
+  users: team.users ?? [],
+});
+
+const normalizeUserPayload = (user) => ({
+  ...user,
+  selected_role: user.role_names?.[0] ?? 'User',
+});
+
+const resetTeamForm = () => {
+  teamForm.value = {
+    id: null,
+    name: '',
+    description: '',
+    customer_id: null,
+    manager_id: null,
+    member_ids: [],
+  };
+  teamFormErrors.value = {};
+};
+
+const resetCustomerForm = () => {
+  customerForm.value = {
+    id: null,
+    name: '',
+    description: '',
+  };
+  customerFormErrors.value = {};
+};
+
+const startEditingTeam = (team) => {
+  teamForm.value = {
+    id: team.id,
+    name: team.name,
+    description: team.description ?? '',
+    customer_id: team.customer_id ?? team.customer?.id ?? null,
+    manager_id: team.manager_id ?? team.manager?.id ?? null,
+    member_ids: (team.users ?? [])
+      .map((user) => user.id)
+      .filter((userId) => userId !== (team.manager_id ?? team.manager?.id ?? null)),
+  };
+  teamFormErrors.value = {};
+};
+
+const startEditingCustomer = (customer) => {
+  customerForm.value = {
+    id: customer.id,
+    name: customer.name,
+    description: customer.description ?? '',
+  };
+  customerFormErrors.value = {};
+};
+
+const loadTeams = async () => {
+  const response = await window.axios.get(route('teams.index'));
+  managedTeams.value = (response.data ?? []).map(normalizeTeamPayload);
+
+  if (selectedTeamId.value !== null) {
+    const currentTeam = managedTeams.value.find((team) => team.id === selectedTeamId.value);
+
+    if (currentTeam) {
+      teamMembersForm.value = (currentTeam.users ?? []).map((user) => ({
+        id: user.id,
+        role: user.pivot?.role ?? (user.id === currentTeam.manager_id ? 'Manager' : 'User'),
+      }));
+    }
+  }
+};
+
+const loadCustomers = async () => {
+  const response = await window.axios.get(route('customers.index'));
+  managedCustomers.value = response.data ?? [];
+};
+
+const loadManagedUsers = async () => {
+  if (!currentUserIsPrivileged.value) {
+    managedUsers.value = [];
+    return;
+  }
+
+  const response = await window.axios.get(route('users.roles.index'));
+  managedUsers.value = (response.data ?? []).map(normalizeUserPayload);
+};
+
+const saveTeam = async () => {
+  teamFormSaving.value = true;
+  teamFormErrors.value = {};
+
+  try {
+    const payload = {
+      name: teamForm.value.name,
+      description: teamForm.value.description,
+      customer_id: teamForm.value.customer_id,
+      manager_id: teamForm.value.manager_id,
+      member_ids: teamForm.value.member_ids,
+    };
+
+    if (teamForm.value.id) {
+      await window.axios.put(route('teams.update', teamForm.value.id), payload);
+    } else {
+      await window.axios.post(route('teams.store'), payload);
+    }
+
+    await loadTeams();
+    resetTeamForm();
+  } catch (error) {
+    teamFormErrors.value = validationErrorsFrom(error);
+  } finally {
+    teamFormSaving.value = false;
+  }
+};
+
+const deleteTeam = async (teamId) => {
+  if (!confirm('Delete this team?')) {
+    return;
+  }
+
+  try {
+    await window.axios.delete(route('teams.destroy', teamId));
+    await loadTeams();
+
+    if (selectedTeamId.value === teamId) {
+      selectedTeamId.value = null;
+      teamMembersForm.value = [];
+      teamMembersErrors.value = {};
+    }
+  } catch {
+    alert('Unable to delete this team.');
+  }
+};
+
+const saveCustomer = async () => {
+  customerFormSaving.value = true;
+  customerFormErrors.value = {};
+
+  try {
+    const payload = {
+      name: customerForm.value.name,
+      description: customerForm.value.description,
+    };
+
+    if (customerForm.value.id) {
+      await window.axios.put(route('customers.update', customerForm.value.id), payload);
+    } else {
+      await window.axios.post(route('customers.store'), payload);
+    }
+
+    await loadCustomers();
+    resetCustomerForm();
+  } catch (error) {
+    customerFormErrors.value = validationErrorsFrom(error);
+  } finally {
+    customerFormSaving.value = false;
+  }
+};
+
+const deleteCustomer = async (customerId) => {
+  if (!confirm('Delete this customer?')) {
+    return;
+  }
+
+  try {
+    await window.axios.delete(route('customers.destroy', customerId));
+    await loadCustomers();
+  } catch {
+    alert('Unable to delete this customer.');
+  }
+};
+
+const openTeamMembersEditor = (team) => {
+  selectedTeamId.value = team.id;
+  teamMembersErrors.value = {};
+  teamMembersForm.value = (team.users ?? []).map((user) => ({
+    id: user.id,
+    role: user.pivot?.role ?? (user.id === team.manager_id ? 'Manager' : 'User'),
+  }));
+};
+
+const addTeamMemberRow = () => {
+  teamMembersForm.value = [...teamMembersForm.value, { id: null, role: 'User' }];
+};
+
+const removeTeamMemberRow = (index) => {
+  const activeTeam = selectedTeam.value;
+  const member = teamMembersForm.value[index];
+
+  if (activeTeam && member?.id === activeTeam.manager_id) {
+    return;
+  }
+
+  teamMembersForm.value = teamMembersForm.value.filter((_, memberIndex) => memberIndex !== index);
+};
+
+const saveTeamMembers = async () => {
+  if (!selectedTeam.value) {
+    return;
+  }
+
+  teamMembersSaving.value = true;
+  teamMembersErrors.value = {};
+
+  try {
+    const members = teamMembersForm.value
+      .filter((member) => member.id)
+      .reduce((carry, member) => {
+        if (!carry.some((existing) => existing.id === member.id)) {
+          carry.push({ id: member.id, role: member.role });
+        }
+
+        return carry;
+      }, []);
+
+    await window.axios.patch(route('teams.members.sync', selectedTeam.value.id), { members });
+    await loadTeams();
+  } catch (error) {
+    teamMembersErrors.value = validationErrorsFrom(error);
+  } finally {
+    teamMembersSaving.value = false;
+  }
+};
+
+const saveUserRole = async (userId) => {
+  const user = managedUsers.value.find((entry) => entry.id === userId);
+
+  if (!user) {
+    return;
+  }
+
+  savingUserRoleIds.value = [...savingUserRoleIds.value, userId];
+  userRoleErrors.value = {
+    ...userRoleErrors.value,
+    [userId]: null,
+  };
+
+  try {
+    const response = await window.axios.put(route('users.roles.update', userId), {
+      role: user.selected_role,
+    });
+
+    managedUsers.value = managedUsers.value.map((entry) =>
+      entry.id === userId ? normalizeUserPayload(response.data) : entry
+    );
+  } catch (error) {
+    userRoleErrors.value = {
+      ...userRoleErrors.value,
+      [userId]: validationErrorsFrom(error).role?.[0] ?? 'Unable to update role.',
+    };
+  } finally {
+    savingUserRoleIds.value = savingUserRoleIds.value.filter((id) => id !== userId);
+  }
+};
+
+onMounted(async () => {
+  await Promise.all([loadTeams(), loadCustomers(), loadManagedUsers()]);
+});
 
 const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -128,6 +528,8 @@ const createForm = useForm({
   attachments: [],
   status: 'todo',
   progress: 0,
+  assignee_ids: [],
+  mentions: [],
 });
 
 const editForm = useForm({
@@ -138,6 +540,8 @@ const editForm = useForm({
   attachments: [],
   status: 'todo',
   progress: 0,
+  assignee_ids: [],
+  mentions: [],
 });
 
 const createProjectForm = useForm({
@@ -145,6 +549,10 @@ const createProjectForm = useForm({
   description: '',
   clipboard_text: '',
   attachments: [],
+  team_id: null,
+  customer_id: null,
+  project_manager_id: null,
+  mentions: [],
 });
 
 const editProjectForm = useForm({
@@ -153,6 +561,10 @@ const editProjectForm = useForm({
   description: '',
   clipboard_text: '',
   attachments: [],
+  team_id: null,
+  customer_id: null,
+  project_manager_id: null,
+  mentions: [],
   selected_project_id: selectedProjectId.value,
 });
 
@@ -226,6 +638,8 @@ watch(
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
+    createForm.assignee_ids = [];
+    createForm.mentions = [];
     createForm.reset('title', 'content', 'clipboard_text', 'attachments');
     createForm.clearErrors();
     isCreateModalOpen.value = false;
@@ -283,6 +697,10 @@ const closeCreateModal = () => {
   createForm.reset('title', 'content', 'clipboard_text', 'attachments');
   createForm.status = 'todo';
   createForm.progress = 0;
+  createForm.assignee_ids = [];
+  createForm.mentions = [];
+  noteMentionQuery.value = '';
+  noteMentionSuggestions.value = [];
 };
 
 const createNote = () => {
@@ -307,6 +725,10 @@ const startEditing = (note) => {
   editForm.attachments = [];
   editForm.status = note.status;
   editForm.progress = note.progress;
+  editForm.assignee_ids = Array.isArray(note.assignee_ids) ? [...note.assignee_ids] : [];
+  editForm.mentions = Array.isArray(note.mentions) ? [...note.mentions] : [];
+  editNoteMentionQuery.value = '';
+  editNoteMentionSuggestions.value = [];
   isEditTaskDropActive.value = false;
 };
 
@@ -316,6 +738,8 @@ const cancelEditing = () => {
   editForm.id = null;
   editForm.status = 'todo';
   editForm.progress = 0;
+  editForm.assignee_ids = [];
+  editForm.mentions = [];
 };
 
 const updateNote = () => {
@@ -442,6 +866,12 @@ const openCreateProjectModal = () => {
   isCreateProjectDropActive.value = false;
   createProjectForm.clearErrors();
   createProjectForm.reset();
+  createProjectForm.team_id = null;
+  createProjectForm.customer_id = null;
+  createProjectForm.project_manager_id = null;
+  createProjectForm.mentions = [];
+  projectMentionQuery.value = '';
+  projectMentionSuggestions.value = [];
   isCreateProjectModalOpen.value = true;
 };
 
@@ -451,6 +881,12 @@ const closeCreateProjectModal = () => {
   isCreateProjectModalOpen.value = false;
   createProjectForm.clearErrors();
   createProjectForm.reset();
+  createProjectForm.team_id = null;
+  createProjectForm.customer_id = null;
+  createProjectForm.project_manager_id = null;
+  createProjectForm.mentions = [];
+  projectMentionQuery.value = '';
+  projectMentionSuggestions.value = [];
 };
 
 const createProject = () => {
@@ -467,8 +903,14 @@ const openEditProjectModal = (project) => {
   editProjectForm.description = project.description ?? '';
   editProjectForm.clipboard_text = project.clipboard_text ?? '';
   editProjectForm.attachments = [];
+  editProjectForm.team_id = project.team_id ?? null;
+  editProjectForm.customer_id = project.customer_id ?? null;
+  editProjectForm.project_manager_id = project.project_manager_id ?? null;
+  editProjectForm.mentions = Array.isArray(project.mentions) ? [...project.mentions] : [];
   editProjectForm.selected_project_id = selectedProjectId.value;
   editProjectForm.clearErrors();
+  projectMentionQuery.value = '';
+  projectMentionSuggestions.value = [];
   isEditProjectModalOpen.value = true;
 };
 
@@ -477,6 +919,10 @@ const closeEditProjectModal = () => {
   editProjectForm.clearErrors();
   editProjectForm.reset();
   editProjectForm.id = null;
+  editProjectForm.team_id = null;
+  editProjectForm.customer_id = null;
+  editProjectForm.project_manager_id = null;
+  editProjectForm.mentions = [];
   editProjectForm.selected_project_id = selectedProjectId.value;
 };
 
@@ -966,6 +1412,223 @@ const deleteProject = (projectId) => {
 
         </div>
 
+        <div class="mb-6 grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+          <section class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Teams</h3>
+                <p class="text-sm text-gray-500">Create teams, assign managers, and manage team membership.</p>
+              </div>
+              <button
+                type="button"
+                class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50"
+                @click="resetTeamForm"
+              >
+                New Team
+              </button>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)]">
+              <div class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div>
+                  <label class="mb-1 block text-sm font-medium text-gray-700">Team name</label>
+                  <input v-model="teamForm.name" type="text" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                  <p v-if="teamFormErrors.name" class="mt-1 text-xs text-red-600">{{ teamFormErrors.name[0] }}</p>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                  <textarea v-model="teamForm.description" rows="3" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                  <p v-if="teamFormErrors.description" class="mt-1 text-xs text-red-600">{{ teamFormErrors.description[0] }}</p>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-sm font-medium text-gray-700">Manager</label>
+                  <select v-model="teamForm.manager_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option :value="null">Current user</option>
+                    <option v-for="user in userOptions" :key="`team-manager-${user.id}`" :value="user.id">{{ user.name }}</option>
+                  </select>
+                  <p v-if="teamFormErrors.manager_id" class="mt-1 text-xs text-red-600">{{ teamFormErrors.manager_id[0] }}</p>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-sm font-medium text-gray-700">Customer</label>
+                  <select v-model="teamForm.customer_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option :value="null">No customer</option>
+                    <option v-for="customer in customerOptions" :key="`team-customer-${customer.id}`" :value="customer.id">{{ customer.name }}</option>
+                  </select>
+                  <p v-if="teamFormErrors.customer_id" class="mt-1 text-xs text-red-600">{{ teamFormErrors.customer_id[0] }}</p>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-sm font-medium text-gray-700">Initial members</label>
+                  <select v-model="teamForm.member_ids" multiple class="block min-h-[120px] w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option v-for="user in userOptions" :key="`team-member-${user.id}`" :value="user.id">{{ user.name }}</option>
+                  </select>
+                  <p class="mt-1 text-xs text-gray-500">Selected members start with the `User` team role. The manager is always included.</p>
+                  <p v-if="teamFormErrors.member_ids" class="mt-1 text-xs text-red-600">{{ teamFormErrors.member_ids[0] }}</p>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                  <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50" @click="resetTeamForm">Reset</button>
+                  <button type="button" class="rounded-md border border-transparent bg-gray-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-gray-800 disabled:opacity-60" :disabled="teamFormSaving" @click="saveTeam">
+                    {{ teamFormSaving ? 'Saving...' : (teamForm.id ? 'Save Team' : 'Create Team') }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <article v-for="team in managedTeams" :key="`team-card-${team.id}`" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 class="text-sm font-semibold text-gray-900">{{ team.name }}</h4>
+                      <p v-if="team.description" class="mt-1 text-xs text-gray-500">{{ team.description }}</p>
+                    </div>
+                    <div class="flex gap-1">
+                      <button type="button" class="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100" @click="startEditingTeam(team)">Edit</button>
+                      <button type="button" class="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100" @click="openTeamMembersEditor(team)">Members</button>
+                      <button type="button" class="rounded-md border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100" @click="deleteTeam(team.id)">Delete</button>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-gray-600">
+                    <span class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Manager: {{ team.manager?.name ?? 'Unassigned' }}</span>
+                    <span class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Customer: {{ team.customer?.name ?? 'None' }}</span>
+                    <span class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Members: {{ team.users?.length ?? 0 }}</span>
+                  </div>
+                </article>
+
+                <div v-if="selectedTeam" class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h4 class="text-sm font-semibold text-gray-900">Manage {{ selectedTeam.name }} Members</h4>
+                      <p class="text-xs text-gray-500">Managers can add, remove, and reassign team-scoped roles.</p>
+                    </div>
+                    <button type="button" class="rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50" @click="addTeamMemberRow">Add member</button>
+                  </div>
+
+                  <div class="space-y-2">
+                    <div v-for="(member, memberIndex) in teamMembersForm" :key="`team-member-row-${memberIndex}`" class="grid gap-2 rounded-md border border-gray-200 bg-white p-2 md:grid-cols-[minmax(0,1fr)_140px_auto]">
+                      <select v-model="member.id" class="rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option :value="null">Select user</option>
+                        <option v-for="user in userOptions" :key="`team-member-user-${selectedTeam.id}-${user.id}`" :value="user.id">{{ user.name }}</option>
+                      </select>
+                      <select v-model="member.role" class="rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" :disabled="member.id === selectedTeam.manager_id">
+                        <option v-for="role in teamRoleOptions" :key="`team-member-role-${role}`" :value="role">{{ role }}</option>
+                      </select>
+                      <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" :disabled="member.id === selectedTeam.manager_id" @click="removeTeamMemberRow(memberIndex)">Remove</button>
+                    </div>
+                  </div>
+
+                  <p v-if="teamMembersErrors.members" class="mt-2 text-xs text-red-600">{{ teamMembersErrors.members[0] }}</p>
+
+                  <div class="mt-3 flex justify-end gap-2">
+                    <button type="button" class="rounded-md border border-transparent bg-gray-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-gray-800 disabled:opacity-60" :disabled="teamMembersSaving" @click="saveTeamMembers">
+                      {{ teamMembersSaving ? 'Saving...' : 'Save Members' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Customers</h3>
+                <p class="text-sm text-gray-500">Maintain customer records used by teams and projects.</p>
+              </div>
+              <button
+                type="button"
+                class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50"
+                @click="resetCustomerForm"
+              >
+                New Customer
+              </button>
+            </div>
+
+            <div class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Customer name</label>
+                <input v-model="customerForm.name" type="text" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <p v-if="customerFormErrors.name" class="mt-1 text-xs text-red-600">{{ customerFormErrors.name[0] }}</p>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                <textarea v-model="customerForm.description" rows="3" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                <p v-if="customerFormErrors.description" class="mt-1 text-xs text-red-600">{{ customerFormErrors.description[0] }}</p>
+              </div>
+
+              <div class="flex justify-end gap-2">
+                <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50" @click="resetCustomerForm">Reset</button>
+                <button type="button" class="rounded-md border border-transparent bg-gray-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-gray-800 disabled:opacity-60" :disabled="customerFormSaving" @click="saveCustomer">
+                  {{ customerFormSaving ? 'Saving...' : (customerForm.id ? 'Save Customer' : 'Create Customer') }}
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              <article v-for="customer in managedCustomers" :key="`customer-card-${customer.id}`" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-900">{{ customer.name }}</h4>
+                    <p v-if="customer.description" class="mt-1 text-xs text-gray-500">{{ customer.description }}</p>
+                  </div>
+                  <div class="flex gap-1">
+                    <button type="button" class="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100" @click="startEditingCustomer(customer)">Edit</button>
+                    <button type="button" class="rounded-md border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100" @click="deleteCustomer(customer.id)">Delete</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <section v-if="currentUserIsPrivileged" class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div class="mb-4 border-b border-gray-100 pb-4">
+            <h3 class="text-lg font-semibold text-gray-900">User Roles</h3>
+            <p class="text-sm text-gray-500">Assign one primary role to each account. Admin and CEO remain globally scoped.</p>
+          </div>
+
+          <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="min-w-full text-left text-sm">
+              <thead class="bg-gray-50">
+                <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                  <th class="px-3 py-2">User</th>
+                  <th class="px-3 py-2">Email</th>
+                  <th class="px-3 py-2">Current Role</th>
+                  <th class="px-3 py-2 text-right">Update</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="user in managedUsers" :key="`managed-user-${user.id}`" class="border-b border-gray-100">
+                  <td class="px-3 py-3 font-medium text-gray-900">{{ user.name }}</td>
+                  <td class="px-3 py-3 text-gray-600">{{ user.email }}</td>
+                  <td class="px-3 py-3">
+                    <div class="max-w-[180px]">
+                      <select v-model="user.selected_role" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option v-for="role in globalRoleOptions" :key="`user-role-${user.id}-${role}`" :value="role">{{ role }}</option>
+                      </select>
+                      <p v-if="userRoleErrors[user.id]" class="mt-1 text-xs text-red-600">{{ userRoleErrors[user.id] }}</p>
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      class="rounded-md border border-transparent bg-gray-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-gray-800 disabled:opacity-60"
+                      :disabled="savingUserRoleIds.includes(user.id)"
+                      @click="saveUserRole(user.id)"
+                    >
+                      {{ savingUserRoleIds.includes(user.id) ? 'Saving...' : 'Save Role' }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <div v-if="selectedProject" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div class="mb-5 border-b border-gray-100 pb-4">
             <h3 class="text-lg font-semibold text-gray-900">{{ selectedProject.name }} Board</h3>
@@ -974,6 +1637,20 @@ const deleteProject = (projectId) => {
               ({{ selectedProject.completion_percentage }}%)
             </p>
             <p v-if="selectedProject.description" class="mt-1 text-sm text-gray-600">{{ selectedProject.description }}</p>
+            <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
+              <span v-if="selectedProject.team_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Team: {{ selectedProject.team_name }}</span>
+              <span v-if="selectedProject.customer_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Customer: {{ selectedProject.customer_name }}</span>
+              <span v-if="selectedProject.project_manager_name" class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Manager: {{ selectedProject.project_manager_name }}</span>
+            </div>
+            <div v-if="selectedProject.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+              <span
+                v-for="(mention, mentionIndex) in selectedProject.mentions"
+                :key="`selected-project-mention-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`"
+                class="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-800"
+              >
+                @{{ mention.type }}/{{ mention.name }}
+              </span>
+            </div>
             <div v-if="selectedProject.clipboard_text" class="mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
               <div class="mb-1 flex items-center justify-between gap-2">
                 <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Clipboard Screen Notes</p>
@@ -1193,6 +1870,49 @@ const deleteProject = (projectId) => {
                             </div>
                           </div>
                         </div>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-700">Assignees</label>
+                            <select
+                              v-model="editForm.assignee_ids"
+                              multiple
+                              class="block min-h-[108px] w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option v-for="user in userOptions" :key="`edit-note-assignee-${user.id}`" :value="user.id">
+                                {{ user.name }}
+                              </option>
+                            </select>
+                            <p v-if="editForm.errors.assignee_ids" class="mt-1 text-xs text-red-600">{{ editForm.errors.assignee_ids }}</p>
+                          </div>
+                          <div class="rounded-md border border-gray-200 bg-gray-50 p-2">
+                            <p class="text-xs font-medium text-gray-700">Mentions</p>
+                            <div class="mt-2 flex gap-2">
+                              <select v-model="editNoteMentionType" class="rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option v-for="item in mentionTypes" :key="`edit-note-mention-type-${item.value}`" :value="item.value">{{ item.label }}</option>
+                              </select>
+                              <input v-model="editNoteMentionQuery" type="text" class="min-w-0 flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Name to mention">
+                              <button type="button" class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click="fetchMentionSuggestions(editNoteMentionType, editNoteMentionQuery, editNoteMentionSuggestions)">Find</button>
+                            </div>
+                            <div v-if="editNoteMentionSuggestions.length" class="mt-2 flex flex-wrap gap-2">
+                              <button
+                                v-for="item in editNoteMentionSuggestions"
+                                :key="`edit-note-mention-${item.type}-${item.id ?? item.name}`"
+                                type="button"
+                                class="rounded-full border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                                @click="addMention(editForm, item)"
+                              >
+                                @{{ item.type }}/{{ item.name }}
+                              </button>
+                            </div>
+                            <div v-if="editForm.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+                              <span v-for="(mention, mentionIndex) in editForm.mentions" :key="`edit-note-selected-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`" class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
+                                @{{ mention.type }}/{{ mention.name }}
+                                <button type="button" class="text-gray-500 hover:text-red-600" @click="removeMention(editForm, mentionIndex)">x</button>
+                              </span>
+                            </div>
+                            <p v-if="editForm.errors.mentions" class="mt-1 text-xs text-red-600">{{ editForm.errors.mentions }}</p>
+                          </div>
+                        </div>
                         <div class="grid grid-cols-2 gap-2">
                           <select
                             v-model="editForm.status"
@@ -1267,6 +1987,26 @@ const deleteProject = (projectId) => {
                         >
                           {{ attachment.original_name }}
                         </a>
+                      </div>
+
+                      <div v-if="note.assignee_names?.length" class="mt-2 flex flex-wrap gap-2">
+                        <span
+                          v-for="assignee in note.assignee_names"
+                          :key="`note-assignee-${note.id}-${assignee}`"
+                          class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800"
+                        >
+                          {{ assignee }}
+                        </span>
+                      </div>
+
+                      <div v-if="note.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+                        <span
+                          v-for="(mention, mentionIndex) in note.mentions"
+                          :key="`note-mention-${note.id}-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`"
+                          class="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-800"
+                        >
+                          @{{ mention.type }}/{{ mention.name }}
+                        </span>
                       </div>
 
                       <div v-if="note.status === 'in_progress'" class="mt-2">
@@ -1373,6 +2113,64 @@ const deleteProject = (projectId) => {
               placeholder="Describe project scope"
             ></textarea>
             <p v-if="createProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.description }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Team (optional)</label>
+              <select v-model="createProjectForm.team_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option :value="null">No team</option>
+                <option v-for="team in teamOptions" :key="`create-team-${team.id}`" :value="team.id">{{ team.name }}</option>
+              </select>
+              <p v-if="createProjectForm.errors.team_id" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.team_id }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Customer (optional)</label>
+              <select v-model="createProjectForm.customer_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option :value="null">No customer</option>
+                <option v-for="customer in customerOptions" :key="`create-customer-${customer.id}`" :value="customer.id">{{ customer.name }}</option>
+              </select>
+              <p v-if="createProjectForm.errors.customer_id" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.customer_id }}</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700">Project Manager (optional)</label>
+            <select v-model="createProjectForm.project_manager_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <option :value="null">Auto assign to creator</option>
+              <option v-for="user in userOptions" :key="`create-manager-${user.id}`" :value="user.id">{{ user.name }}</option>
+            </select>
+            <p v-if="createProjectForm.errors.project_manager_id" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.project_manager_id }}</p>
+          </div>
+
+          <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <p class="text-sm font-medium text-gray-700">Mentions</p>
+            <p class="mt-0.5 text-xs text-gray-500">Add mentions in `@Type/Name` format via suggestions.</p>
+            <div class="mt-2 flex flex-wrap items-end gap-2">
+              <select v-model="projectMentionType" class="rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option v-for="item in mentionTypes" :key="`create-project-mention-type-${item.value}`" :value="item.value">{{ item.label }}</option>
+              </select>
+              <input v-model="projectMentionQuery" type="text" class="min-w-[180px] flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Name to mention">
+              <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click="fetchMentionSuggestions(projectMentionType, projectMentionQuery, projectMentionSuggestions)">Find</button>
+            </div>
+            <div v-if="projectMentionSuggestions.length" class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-for="item in projectMentionSuggestions"
+                :key="`create-project-mention-${item.type}-${item.id ?? item.name}`"
+                type="button"
+                class="rounded-full border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                @click="addMention(createProjectForm, item)"
+              >
+                @{{ item.type }}/{{ item.name }}
+              </button>
+            </div>
+            <div v-if="createProjectForm.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+              <span v-for="(mention, mentionIndex) in createProjectForm.mentions" :key="`create-project-selected-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`" class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
+                @{{ mention.type }}/{{ mention.name }}
+                <button type="button" class="text-gray-500 hover:text-red-600" @click="removeMention(createProjectForm, mentionIndex)">x</button>
+              </span>
+            </div>
+            <p v-if="createProjectForm.errors.mentions" class="mt-1 text-xs text-red-600">{{ createProjectForm.errors.mentions }}</p>
           </div>
 
           <div>
@@ -1542,6 +2340,63 @@ const deleteProject = (projectId) => {
               placeholder="Describe project scope"
             ></textarea>
             <p v-if="editProjectForm.errors.description" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.description }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Team (optional)</label>
+              <select v-model="editProjectForm.team_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option :value="null">No team</option>
+                <option v-for="team in teamOptions" :key="`edit-team-${team.id}`" :value="team.id">{{ team.name }}</option>
+              </select>
+              <p v-if="editProjectForm.errors.team_id" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.team_id }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700">Customer (optional)</label>
+              <select v-model="editProjectForm.customer_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option :value="null">No customer</option>
+                <option v-for="customer in customerOptions" :key="`edit-customer-${customer.id}`" :value="customer.id">{{ customer.name }}</option>
+              </select>
+              <p v-if="editProjectForm.errors.customer_id" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.customer_id }}</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700">Project Manager (optional)</label>
+            <select v-model="editProjectForm.project_manager_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <option :value="null">Keep current manager</option>
+              <option v-for="user in userOptions" :key="`edit-manager-${user.id}`" :value="user.id">{{ user.name }}</option>
+            </select>
+            <p v-if="editProjectForm.errors.project_manager_id" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.project_manager_id }}</p>
+          </div>
+
+          <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <p class="text-sm font-medium text-gray-700">Mentions</p>
+            <div class="mt-2 flex flex-wrap items-end gap-2">
+              <select v-model="projectMentionType" class="rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <option v-for="item in mentionTypes" :key="`edit-project-mention-type-${item.value}`" :value="item.value">{{ item.label }}</option>
+              </select>
+              <input v-model="projectMentionQuery" type="text" class="min-w-[180px] flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Name to mention">
+              <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click="fetchMentionSuggestions(projectMentionType, projectMentionQuery, projectMentionSuggestions)">Find</button>
+            </div>
+            <div v-if="projectMentionSuggestions.length" class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-for="item in projectMentionSuggestions"
+                :key="`edit-project-mention-${item.type}-${item.id ?? item.name}`"
+                type="button"
+                class="rounded-full border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                @click="addMention(editProjectForm, item)"
+              >
+                @{{ item.type }}/{{ item.name }}
+              </button>
+            </div>
+            <div v-if="editProjectForm.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+              <span v-for="(mention, mentionIndex) in editProjectForm.mentions" :key="`edit-project-selected-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`" class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
+                @{{ mention.type }}/{{ mention.name }}
+                <button type="button" class="text-gray-500 hover:text-red-600" @click="removeMention(editProjectForm, mentionIndex)">x</button>
+              </span>
+            </div>
+            <p v-if="editProjectForm.errors.mentions" class="mt-1 text-xs text-red-600">{{ editProjectForm.errors.mentions }}</p>
           </div>
 
           <div>
@@ -1765,6 +2620,49 @@ const deleteProject = (projectId) => {
           </div>
 
           <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Assignees</label>
+                <select
+                  v-model="createForm.assignee_ids"
+                  multiple
+                  class="block min-h-[120px] w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option v-for="user in userOptions" :key="`create-note-assignee-${user.id}`" :value="user.id">
+                    {{ user.name }}
+                  </option>
+                </select>
+                <p v-if="createForm.errors.assignee_ids" class="mt-1 text-xs text-red-600">{{ createForm.errors.assignee_ids }}</p>
+              </div>
+              <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+                <p class="text-sm font-medium text-gray-700">Mentions</p>
+                <div class="mt-2 flex gap-2">
+                  <select v-model="noteMentionType" class="rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option v-for="item in mentionTypes" :key="`create-note-mention-type-${item.value}`" :value="item.value">{{ item.label }}</option>
+                  </select>
+                  <input v-model="noteMentionQuery" type="text" class="min-w-0 flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Name to mention">
+                  <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click="fetchMentionSuggestions(noteMentionType, noteMentionQuery, noteMentionSuggestions)">Find</button>
+                </div>
+                <div v-if="noteMentionSuggestions.length" class="mt-2 flex flex-wrap gap-2">
+                  <button
+                    v-for="item in noteMentionSuggestions"
+                    :key="`create-note-mention-${item.type}-${item.id ?? item.name}`"
+                    type="button"
+                    class="rounded-full border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                    @click="addMention(createForm, item)"
+                  >
+                    @{{ item.type }}/{{ item.name }}
+                  </button>
+                </div>
+                <div v-if="createForm.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+                  <span v-for="(mention, mentionIndex) in createForm.mentions" :key="`create-note-selected-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`" class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
+                    @{{ mention.type }}/{{ mention.name }}
+                    <button type="button" class="text-gray-500 hover:text-red-600" @click="removeMention(createForm, mentionIndex)">x</button>
+                  </span>
+                </div>
+                <p v-if="createForm.errors.mentions" class="mt-1 text-xs text-red-600">{{ createForm.errors.mentions }}</p>
+              </div>
+            </div>
             <div>
               <label for="modal-status" class="mb-1 block text-sm font-medium text-gray-700">Status</label>
               <select

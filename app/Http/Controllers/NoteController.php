@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreNoteRequest;
+use App\Http\Requests\UpdateNoteRequest;
 use App\Models\Note;
 use App\Models\Project;
-use Illuminate\Http\UploadedFile;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,12 +18,12 @@ class NoteController extends Controller
 {
     private const PROGRESS_STEPS = [0, 25, 50, 75, 100];
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request): Response|\Illuminate\Http\JsonResponse
+    public function index(Request $request): Response|JsonResponse
     {
-        $notes = $request->user()->notes()->latest()->get();
+        $notes = Note::query()
+            ->whereHas('project', fn ($query) => $query->visibleTo($request->user()))
+            ->latest()
+            ->get();
 
         if ($request->expectsJson()) {
             return response()->json($notes);
@@ -31,48 +35,36 @@ class NoteController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreNoteRequest $request): RedirectResponse|JsonResponse
     {
         $this->authorize('create', Note::class);
 
-        $validated = $request->validate([
-            'project_id' => [
-                'required',
-                Rule::exists('projects', 'id')->where(
-                    fn ($query) => $query->where('user_id', $request->user()->id)
-                ),
-            ],
-            'title' => 'required|string|max:255',
-            'content' => 'nullable|string',
-            'clipboard_text' => 'nullable|string',
-            'status' => ['nullable', Rule::in(Note::STATUSES)],
-            'progress' => ['nullable', Rule::in(self::PROGRESS_STEPS)],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
+        $project = Project::query()
+            ->visibleTo($request->user())
+            ->whereKey($request->validated('project_id'))
+            ->firstOrFail();
 
-        $validated['status'] = $validated['status'] ?? Note::STATUS_TODO;
-        $validated['progress'] = $validated['progress'] ?? 0;
+        $payload = [
+            'project_id' => $project->id,
+            'team_id' => $project->team_id,
+            'title' => $request->validated('title'),
+            'content' => $request->validated('content') ?? '',
+            'clipboard_text' => $request->validated('clipboard_text'),
+            'status' => $request->validated('status') ?? Note::STATUS_TODO,
+            'progress' => $request->validated('progress') ?? 0,
+            'mentions' => $request->validated('mentions') ?? [],
+            'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
+        ];
 
-        if ((int) $validated['progress'] === 100 || $validated['status'] === Note::STATUS_DONE) {
-            $validated['status'] = Note::STATUS_DONE;
-            $validated['progress'] = 100;
-        } elseif ($validated['status'] === Note::STATUS_TODO) {
-            $validated['progress'] = 0;
+        if ((int) $payload['progress'] === 100 || $payload['status'] === Note::STATUS_DONE) {
+            $payload['status'] = Note::STATUS_DONE;
+            $payload['progress'] = 100;
+        } elseif ($payload['status'] === Note::STATUS_TODO) {
+            $payload['progress'] = 0;
         }
 
-        $note = $request->user()->notes()->create([
-            'project_id' => $validated['project_id'],
-            'title' => $validated['title'],
-            'content' => $validated['content'] ?? '',
-            'clipboard_text' => $validated['clipboard_text'] ?? null,
-            'status' => $validated['status'],
-            'progress' => $validated['progress'],
-            'attachments' => $this->storeUploadedFiles($request->file('attachments'), "notes/temp-{$request->user()->id}"),
-        ]);
+        $note = $request->user()->notes()->create($payload);
+        $note->assignees()->sync($request->validated('assignee_ids') ?? []);
 
         if (! $request->expectsJson()) {
             return redirect()
@@ -80,34 +72,21 @@ class NoteController extends Controller
                 ->with('success', 'Note created successfully.');
         }
 
-        return response()->json($note, 201);
+        return response()->json($note->load('assignees:id,name'), 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Note $note)
+    public function show(Note $note): JsonResponse
     {
         $this->authorize('view', $note);
-        return response()->json($note);
+
+        return response()->json($note->load('assignees:id,name'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Note $note)
+    public function update(UpdateNoteRequest $request, Note $note): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $note);
 
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'content' => 'sometimes|nullable|string',
-            'clipboard_text' => 'sometimes|nullable|string',
-            'status' => ['sometimes', Rule::in(Note::STATUSES)],
-            'progress' => ['sometimes', Rule::in(self::PROGRESS_STEPS)],
-            'attachments' => ['sometimes', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
+        $validated = $request->validated();
 
         if (array_key_exists('progress', $validated) && (int) $validated['progress'] === 100) {
             $validated['status'] = Note::STATUS_DONE;
@@ -138,7 +117,15 @@ class NoteController extends Controller
             );
         }
 
+        if (array_key_exists('mentions', $validated)) {
+            $note->mentions = $validated['mentions'];
+        }
+
         $note->update($validated);
+
+        if (array_key_exists('assignee_ids', $validated)) {
+            $note->assignees()->sync($validated['assignee_ids'] ?? []);
+        }
 
         if (! $request->expectsJson()) {
             return redirect()
@@ -146,18 +133,14 @@ class NoteController extends Controller
                 ->with('success', 'Note updated successfully.');
         }
 
-        return response()->json($note);
+        return response()->json($note->load('assignees:id,name'));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Note $note)
+    public function destroy(Note $note): RedirectResponse|JsonResponse|HttpResponse
     {
         $this->authorize('delete', $note);
 
         $projectId = $note->project_id;
-
         $note->delete();
 
         if (! request()->expectsJson()) {
@@ -180,7 +163,7 @@ class NoteController extends Controller
         }
 
         return collect($files)
-            ->map(function (UploadedFile $file) use ($directory) {
+            ->map(function (UploadedFile $file) use ($directory): array {
                 $path = $file->store($directory, 'public');
 
                 return [
