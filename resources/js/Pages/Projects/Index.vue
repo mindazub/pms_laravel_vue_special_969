@@ -2717,9 +2717,6 @@ const deleteProject = (projectId) => {
           </div>
         </div>
 
-        <div v-else class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
-          Select a project from the list to show its Kanban items.
-        </div>
       </div>
     </div>
 
