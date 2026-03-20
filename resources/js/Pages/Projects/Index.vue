@@ -866,11 +866,6 @@ const parseIsoDate = (value) => {
 
 const scheduledProjects = computed(() => props.projects.data.filter((project) => project.start_date && project.end_date));
 
-const projectListViewportHeight = computed(() => {
-  const rows = Math.max(1, props.projects.data.length);
-  return Math.max(520, rows * 72 + 170);
-});
-
 const scheduledTimelineBounds = computed(() => {
   if (scheduledProjects.value.length === 0) {
     return null;
@@ -1031,10 +1026,12 @@ const monthSegments = computed(() => {
     const durationDays = Math.max(1, Math.round((clampedEnd.getTime() - clampedStart.getTime()) / DAY_MS) + 1);
 
     segments.push({
-      key: `${clampedStart.getFullYear()}-${clampedStart.getMonth() + 1}`,
+      key: `month-${clampedStart.getFullYear()}-${String(clampedStart.getMonth() + 1).padStart(2, '0')}`,
       label: clampedStart.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: clampedStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       offsetPercent: (offsetDays / totalDays) * 100,
       widthPercent: (durationDays / totalDays) * 100,
+      isCurrent: `month-${clampedStart.getFullYear()}-${String(clampedStart.getMonth() + 1).padStart(2, '0')}` === currentTimelineMonthKey,
     });
 
     current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
@@ -1065,6 +1062,7 @@ const yearSegments = computed(() => {
       label: String(year),
       offsetPercent: (offsetDays / totalDays) * 100,
       widthPercent: (durationDays / totalDays) * 100,
+      isCurrent: year === currentTimelineDate.getFullYear(),
     });
 
     year += 1;
@@ -1107,6 +1105,12 @@ const formatIsoDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const currentTimelineDate = new Date();
+const currentTimelineDateIso = formatIsoDate(currentTimelineDate);
+const currentTimelineMonthKey = `month-${currentTimelineDate.getFullYear()}-${String(currentTimelineDate.getMonth() + 1).padStart(2, '0')}`;
+const currentTimelineWeekKey = `week-${formatIsoDate(startOfIsoWeek(currentTimelineDate))}`;
+const currentTimelineHour = currentTimelineDate.getHours();
+
 const weekSegments = computed(() => {
   if (!ganttRange.value) {
     return [];
@@ -1131,12 +1135,14 @@ const weekSegments = computed(() => {
     const tooltipEnd = formatIsoDate(clampedEnd);
 
     segments.push({
-      key: `week-${cursor.toISOString().slice(0, 10)}`,
+      key: `week-${formatIsoDate(cursor)}`,
       label: `W${isoInfo.weekNumber}`,
       rangeLabel: `${segmentStart.getDate()}-${clampedEnd.getDate()}`,
+      dateRangeLabel: `${tooltipStart} to ${tooltipEnd}`,
       tooltip: `W${isoInfo.weekNumber}: ${tooltipStart} to ${tooltipEnd}`,
       offsetPercent: (offsetDays / totalDays) * 100,
       widthPercent: (durationDays / totalDays) * 100,
+      isCurrent: `week-${formatIsoDate(cursor)}` === currentTimelineWeekKey,
     });
 
     cursor = new Date(cursor.getTime() + (7 * DAY_MS));
@@ -1160,10 +1166,11 @@ const weekDaySegments = computed(() => {
     segments.push({
       key: `weekday-${formatIsoDate(current)}`,
       label: current.toLocaleDateString('en-US', { weekday: 'short' }),
+      shortLabel: current.toLocaleDateString('en-US', { weekday: 'narrow' }),
       dayNumber: current.getDate(),
       offsetPercent: (index / totalDays) * 100,
       widthPercent: (1 / totalDays) * 100,
-      isToday: formatIsoDate(current) === formatIsoDate(new Date()),
+      isToday: formatIsoDate(current) === currentTimelineDateIso,
     });
   }
 
@@ -1184,6 +1191,7 @@ const hourSegments = computed(() => {
       offsetPercent: (hour / 24) * 100,
       widthPercent: (1 / 24) * 100,
       isMajor: hour % 6 === 0,
+      isCurrent: hour === currentTimelineHour,
     });
   }
 
@@ -1208,10 +1216,19 @@ const activeGridMarkers = computed(() => {
   }));
 });
 
-const showYearScale = computed(() => ganttPerspective.value === 'year');
-const showMonthScale = computed(() => ganttPerspective.value === 'month');
-const showWeekScale = computed(() => ganttPerspective.value === 'week');
-const showDayScale = computed(() => ganttPerspective.value === 'day');
+const ganttHeaderPrimaryMode = computed(() => (ganttPerspective.value === 'day' ? 'month' : 'year'));
+const ganttHeaderSecondaryMode = computed(() => (ganttPerspective.value === 'day' ? 'week' : 'month'));
+const ganttHeaderDetailMode = computed(() => {
+  if (ganttPerspective.value === 'day') {
+    return 'hour';
+  }
+
+  if (ganttPerspective.value === 'week') {
+    return 'weekday';
+  }
+
+  return 'week';
+});
 
 const rowMarkerClass = (marker) => {
   if (ganttPerspective.value === 'year') {
@@ -1925,8 +1942,8 @@ const deleteProject = (projectId) => {
             <p class="text-sm text-gray-500">Manage projects and select one to view its board.</p>
           </div>
 
-          <div class="min-h-[520px]" :style="{ minHeight: `${projectListViewportHeight}px` }">
-          <div v-if="projectListView === 'list'" class="h-full overflow-x-auto rounded-lg border border-gray-200">
+          <div>
+          <div v-if="projectListView === 'list'" class="overflow-x-auto rounded-lg border border-gray-200">
             <table class="min-w-full text-left text-sm">
               <thead class="bg-gray-50">
                 <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
@@ -2010,41 +2027,99 @@ const deleteProject = (projectId) => {
 
           <div v-else class="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
             <div v-if="ganttRange" class="rounded-md border border-gray-200 bg-white">
-              <div class="relative border-b border-gray-200 bg-gray-50">
-                <div v-if="showYearScale" class="relative h-10">
-                  <div v-for="segment in yearSegments" :key="segment.key" class="absolute inset-y-0 overflow-hidden border-r border-gray-300/70" :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }">
-                    <span class="pl-2 text-xs font-semibold text-gray-700 leading-10">{{ segment.label }}</span>
-                  </div>
+              <div class="overflow-hidden rounded-md border-b border-gray-200 bg-gray-50">
+                <div class="relative h-9 border-b border-gray-200/80 bg-gray-50">
+                  <template v-if="ganttHeaderPrimaryMode === 'year'">
+                    <div
+                      v-for="segment in yearSegments"
+                      :key="segment.key"
+                      class="absolute inset-y-0 overflow-hidden border-r border-gray-300/70 px-2"
+                      :class="segment.isCurrent ? 'bg-blue-50/70 text-blue-800' : 'text-gray-700'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                    >
+                      <span class="text-xs font-semibold leading-9">{{ segment.label }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div
+                      v-for="segment in monthSegments"
+                      :key="segment.key"
+                      class="absolute inset-y-0 overflow-hidden border-r border-gray-300/60 px-2"
+                      :class="segment.isCurrent ? 'bg-blue-50/70 text-blue-800' : 'text-gray-700'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                    >
+                      <span class="text-xs font-semibold leading-9">{{ segment.fullLabel }}</span>
+                    </div>
+                  </template>
                 </div>
 
-                <div v-if="showMonthScale" class="relative h-10 bg-gray-50/70">
-                  <div v-for="segment in monthSegments" :key="segment.key" class="absolute inset-y-0 overflow-hidden border-r border-gray-300/60" :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }">
-                    <span class="pl-2 text-xs font-semibold text-gray-700 leading-10">{{ segment.label }}</span>
-                  </div>
+                <div class="relative h-9 border-b border-gray-200/70 bg-gray-50/80">
+                  <template v-if="ganttHeaderSecondaryMode === 'month'">
+                    <div
+                      v-for="segment in monthSegments"
+                      :key="`${segment.key}-secondary`"
+                      class="absolute inset-y-0 overflow-hidden border-r border-gray-300/60 px-2"
+                      :class="segment.isCurrent ? 'bg-blue-50/60 text-blue-800' : 'text-gray-600'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                    >
+                      <span class="text-[11px] font-semibold uppercase tracking-wide leading-9">{{ segment.label }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div
+                      v-for="segment in weekSegments"
+                      :key="`${segment.key}-secondary`"
+                      class="absolute inset-y-0 overflow-hidden border-r border-blue-200/80 px-2"
+                      :class="segment.isCurrent ? 'bg-blue-100/80 text-blue-900' : 'text-gray-600'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                      :title="segment.tooltip"
+                    >
+                      <span class="text-[11px] font-semibold leading-9">{{ segment.label }} <span class="hidden md:inline">· {{ segment.dateRangeLabel }}</span></span>
+                    </div>
+                  </template>
                 </div>
 
-                <div v-if="showWeekScale" class="relative h-12 bg-gray-50/60">
-                  <div
-                    v-for="segment in weekDaySegments"
-                    :key="segment.key"
-                    class="absolute inset-y-0 border-r border-blue-200 px-1 text-center"
-                    :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
-                  >
-                    <div class="pt-1 text-[10px] font-semibold uppercase" :class="segment.isToday ? 'text-blue-700' : 'text-gray-600'">{{ segment.label }}</div>
-                    <div class="text-[11px] font-bold" :class="segment.isToday ? 'text-blue-700' : 'text-gray-800'">{{ segment.dayNumber }}</div>
-                  </div>
-                </div>
-
-                <div v-if="showDayScale" class="relative h-10 bg-gray-50/60">
-                  <div
-                    v-for="segment in hourSegments"
-                    :key="segment.key"
-                    class="absolute inset-y-0 overflow-hidden border-r"
-                    :class="segment.isMajor ? 'border-blue-200' : 'border-gray-200'"
-                    :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
-                  >
-                    <span v-if="segment.isMajor" class="pl-1 text-[10px] font-semibold text-blue-700 leading-10">{{ segment.label }}</span>
-                  </div>
+                <div class="relative h-12 bg-white">
+                  <template v-if="ganttHeaderDetailMode === 'weekday'">
+                    <div
+                      v-for="segment in weekDaySegments"
+                      :key="segment.key"
+                      class="absolute inset-y-0 border-r border-blue-200 px-1 text-center"
+                      :class="segment.isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-700'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                    >
+                      <div class="pt-1 text-[10px] font-semibold uppercase">{{ segment.label }}</div>
+                      <div class="text-[11px] font-bold">{{ segment.dayNumber }}</div>
+                    </div>
+                  </template>
+                  <template v-else-if="ganttHeaderDetailMode === 'hour'">
+                    <div
+                      v-for="segment in hourSegments"
+                      :key="segment.key"
+                      class="absolute inset-y-0 overflow-hidden border-r px-1"
+                      :class="segment.isCurrent ? 'bg-blue-50 border-blue-300 text-blue-700' : segment.isMajor ? 'border-blue-200 text-blue-700' : 'border-gray-200 text-gray-400'"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                    >
+                      <span class="text-[10px] font-semibold leading-[3rem]">{{ segment.label }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div
+                      v-for="segment in weekSegments"
+                      :key="`${segment.key}-detail`"
+                      class="absolute inset-y-0 overflow-hidden border-r px-1"
+                      :class="ganttPerspective === 'year'
+                        ? (segment.isCurrent ? 'bg-blue-100/80 border-blue-400' : 'border-gray-200/70')
+                        : (segment.isCurrent ? 'bg-blue-50 border-blue-300 text-blue-800' : 'border-gray-200/80 text-gray-600')"
+                      :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
+                      :title="segment.tooltip"
+                    >
+                      <template v-if="ganttPerspective !== 'year'">
+                        <div class="pt-1 text-[10px] font-semibold uppercase">{{ segment.label }}</div>
+                        <div class="text-[10px] text-gray-500">{{ segment.rangeLabel }}</div>
+                      </template>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -2109,22 +2184,6 @@ const deleteProject = (projectId) => {
 
 
         </div>
-
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">People Management</h3>
-              <p class="text-sm text-gray-500">The People section now includes an HR overview plus dedicated Teams, Customers, and Users pages.</p>
-            </div>
-            <Link
-              :href="route('people.index')"
-              class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-50"
-            >
-              Open People
-            </Link>
-          </div>
-        </div>
-
         <div v-if="selectedProject" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div class="mb-5 border-b border-gray-100 pb-4">
             <h3 class="text-lg font-semibold text-gray-900">{{ selectedProject.name }} Board</h3>
