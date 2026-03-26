@@ -582,16 +582,60 @@ const weekRangeLabel = computed(() => {
 });
 
 const goToPreviousWeek = () => {
+  if (projectListView.value === 'gantt') {
+    panGanttTimeline(-1);
+    return;
+  }
+
   displayedWeekStart.value = addDays(displayedWeekStart.value, -7);
 };
 
 const goToNextWeek = () => {
+  if (projectListView.value === 'gantt') {
+    panGanttTimeline(1);
+    return;
+  }
+
   displayedWeekStart.value = addDays(displayedWeekStart.value, 7);
 };
 
 const goToCurrentWeek = () => {
   displayedWeekStart.value = new Date(currentWeekStart);
 };
+
+const goToPreviousTimelineStep = () => {
+  if (projectListView.value === 'gantt') {
+    panGanttTimeline(-1);
+    return;
+  }
+
+  goToPreviousWeek();
+};
+
+const goToNextTimelineStep = () => {
+  if (projectListView.value === 'gantt') {
+    panGanttTimeline(1);
+    return;
+  }
+
+  goToNextWeek();
+};
+
+watch(ganttFocusDate, (nextFocusDate) => {
+  const nextWeekStart = startOfWeek(nextFocusDate);
+
+  if (displayedWeekStart.value.getTime() !== nextWeekStart.getTime()) {
+    displayedWeekStart.value = nextWeekStart;
+  }
+});
+
+watch(displayedWeekStart, (nextWeekStart) => {
+  const normalizedWeekStart = normalizeDate(nextWeekStart);
+
+  if (ganttFocusDate.value.getTime() !== normalizedWeekStart.getTime()) {
+    ganttFocusDate.value = normalizedWeekStart;
+  }
+});
 
 const createForm = useForm({
   project_id: selectedProjectId.value,
@@ -820,7 +864,17 @@ const onGanttBarClick = (event, project) => {
     return;
   }
 
-  router.visit(route('projects.index', { project: project.id }));
+  projectListView.value = 'gantt';
+
+  router.get(
+    route('projects.index'),
+    { project: project.id },
+    {
+      preserveScroll: true,
+      preserveState: true,
+      only: ['selectedProject', 'notes'],
+    }
+  );
 };
 
 const onDocumentMousemove = (event) => {
@@ -1264,6 +1318,8 @@ const hourSegments = computed(() => {
 
   for (let hour = 0; hour < 24; hour += 1) {
     const current = new Date(startTime + (hour * HOUR_MS));
+    const isCurrentHour = formatIsoDate(current) === currentTimelineDateIso
+      && current.getHours() === currentTimelineHour;
 
     segments.push({
       key: `hour-${current.toISOString()}`,
@@ -1271,7 +1327,7 @@ const hourSegments = computed(() => {
       offsetPercent: (hour / 24) * 100,
       widthPercent: (1 / 24) * 100,
       isMajor: current.getHours() % 6 === 0,
-      isCurrent: hour === 0,
+      isCurrent: isCurrentHour,
     });
   }
 
@@ -1911,66 +1967,6 @@ const deleteProject = (projectId) => {
     <div class="py-8">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
-              title="Previous week"
-              @click="goToPreviousWeek"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M12.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
-              </svg>
-            </button>
-
-            <div class="text-center">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week {{ weekNumber }} &mdash; Week View</p>
-              <p class="text-base font-semibold text-gray-900">{{ weekRangeLabel }}</p>
-            </div>
-
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
-              title="Next week"
-              @click="goToNextWeek"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7.293 4.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 11-1.414-1.414L11.586 10 7.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-            </button>
-          </div>
-
-          <div class="mt-4 overflow-x-auto">
-            <div class="grid min-w-[640px] grid-cols-7 gap-2">
-              <div
-                v-for="day in weekDays"
-                :key="day.iso"
-                class="rounded-lg border px-3 py-2 text-center"
-                :class="day.isToday && isCurrentWeekShown
-                  ? 'border-blue-500 bg-blue-50 text-blue-900'
-                  : day.isWeekend
-                    ? 'border-red-200 bg-red-50 text-red-800'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
-              >
-                <p class="text-[11px] font-semibold uppercase tracking-wide">{{ day.weekday }}</p>
-                <p class="mt-1 text-lg font-semibold leading-none">{{ day.dayNumber }}</p>
-                <p class="mt-1 text-[11px] uppercase tracking-wide">{{ day.month }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-3 flex justify-end" v-if="!isCurrentWeekShown">
-            <button
-              type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 transition hover:bg-gray-50"
-              @click="goToCurrentWeek"
-            >
-              Back to current week
-            </button>
-          </div>
-        </div>
-
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div class="mb-5 border-b border-gray-100 pb-4">
             <div class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-2">
@@ -1986,7 +1982,7 @@ const deleteProject = (projectId) => {
                 </svg>
               </button>
               </div>
-              <div class="relative inline-block">
+              <div class="ml-auto flex flex-col items-end">
                 <div class="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1">
                   <button
                     type="button"
@@ -2005,21 +2001,88 @@ const deleteProject = (projectId) => {
                     Gantt
                   </button>
                 </div>
-                <div v-show="projectListView === 'gantt'" class="absolute -left-[120px] top-full mt-2 inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 whitespace-nowrap">
-                  <button
-                    v-for="perspective in ['year', 'month', 'week', 'day']"
-                    :key="perspective"
-                    type="button"
-                    class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
-                    :class="ganttPerspective === perspective ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
-                    @click="ganttPerspective = perspective"
+                <div class="mt-2 flex h-8 items-center justify-end">
+                  <div
+                    class="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 whitespace-nowrap transition-opacity"
+                    :class="projectListView === 'gantt' ? 'opacity-100' : 'pointer-events-none opacity-0'"
+                    :aria-hidden="projectListView !== 'gantt'"
                   >
-                    {{ perspective.charAt(0).toUpperCase() + perspective.slice(1) }}
-                  </button>
+                    <button
+                      v-for="perspective in ['year', 'month', 'week', 'day']"
+                      :key="perspective"
+                      type="button"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
+                      :class="ganttPerspective === perspective ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                      @click="ganttPerspective = perspective"
+                    >
+                      {{ perspective.charAt(0).toUpperCase() + perspective.slice(1) }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
             <p class="text-sm text-gray-500">Manage projects and select one to view its board.</p>
+
+            <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div class="relative border-b border-gray-200 pb-3">
+                <div class="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+                  title="Previous week"
+                  @click="goToPreviousTimelineStep"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+
+                <div class="min-w-[220px] text-center">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Week {{ weekNumber }} &mdash; Week View</p>
+                  <p class="text-base font-semibold text-gray-900">{{ weekRangeLabel }}</p>
+                </div>
+
+                <button
+                  type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50"
+                  title="Next week"
+                  @click="goToNextTimelineStep"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 4.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 11-1.414-1.414L11.586 10 7.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                </div>
+
+                <button
+                  v-if="!isCurrentWeekShown"
+                  type="button"
+                  class="absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700 transition hover:bg-gray-50"
+                  @click="goToCurrentWeek"
+                >
+                  Back
+                </button>
+              </div>
+
+              <div class="mt-3 overflow-x-auto">
+                <div class="grid min-w-[640px] grid-cols-7 gap-2">
+                  <div
+                    v-for="day in weekDays"
+                    :key="day.iso"
+                    class="rounded-lg border px-3 py-2 text-center"
+                    :class="day.isToday && isCurrentWeekShown
+                      ? 'border-blue-500 bg-blue-50 text-blue-900'
+                      : day.isWeekend
+                        ? 'border-red-200 bg-red-50 text-red-800'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
+                  >
+                    <p class="text-[11px] font-semibold uppercase tracking-wide">{{ day.weekday }}</p>
+                    <p class="mt-1 text-lg font-semibold leading-none">{{ day.dayNumber }}</p>
+                    <p class="mt-1 text-[11px] uppercase tracking-wide">{{ day.month }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -2194,10 +2257,8 @@ const deleteProject = (projectId) => {
                       :style="{ left: `${segment.offsetPercent}%`, width: `${segment.widthPercent}%` }"
                       :title="segment.tooltip"
                     >
-                      <template v-if="ganttPerspective !== 'year'">
-                        <div class="pt-1 text-[10px] font-semibold uppercase">{{ segment.label }}</div>
-                        <div class="text-[10px] text-gray-500">{{ segment.rangeLabel }}</div>
-                      </template>
+                      <div class="pt-1 text-[10px] font-semibold uppercase">{{ segment.label }}</div>
+                      <div class="text-[10px] text-gray-500">{{ segment.rangeLabel }}</div>
                     </div>
                   </template>
                 </div>
