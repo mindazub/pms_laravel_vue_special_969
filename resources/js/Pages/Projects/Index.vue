@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   projects: {
@@ -60,12 +60,21 @@ const statusMeta = {
   },
 };
 
+const backlogColumn = {
+  key: 'backlog',
+  title: 'Backlog',
+  description: 'Future backlog items will sync from the day view',
+  badgeClass: 'bg-violet-100 text-violet-900 border-violet-300',
+};
+
 const columns = computed(() =>
   props.statuses.map((status) => ({
     key: status,
     ...statusMeta[status],
   }))
 );
+
+const kanbanColumns = computed(() => [backlogColumn, ...columns.value]);
 
 const page = usePage();
 const selectedProjectId = computed(() => props.selectedProject?.id ?? null);
@@ -744,6 +753,110 @@ const expandedBoardColumn = ref(null);
 const projectListView = ref('list');
 const ganttPerspective = ref('week');
 const ganttPerspectiveOrder = ['year', 'month', 'week', 'day'];
+const ganttDaySubView = ref('tasks');
+
+// --- Backlog rich editor ---
+const backlogEditorRef = ref(null);
+const backlogMentionPopup = ref({ active: false, phase: 'type', x: 0, y: 0 });
+let backlogMentionAnchor = null;
+
+const saveBacklog = () => {
+    if (backlogEditorRef.value) {
+        localStorage.setItem('projects-backlog-v2', backlogEditorRef.value.innerHTML);
+    }
+};
+
+watch(ganttDaySubView, async (val) => {
+    if (val === 'backlog') {
+        await nextTick();
+        if (backlogEditorRef.value) {
+            backlogEditorRef.value.innerHTML = localStorage.getItem('projects-backlog-v2') ?? '';
+        }
+    }
+});
+
+const backlogUpdateMentionState = () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const preText = range.startContainer.textContent?.slice(0, range.startOffset) ?? '';
+    const atMatch = preText.match(/@([a-zA-Z0-9]*)$/);
+    if (atMatch) {
+        const rect = range.getBoundingClientRect();
+        backlogMentionPopup.value = {
+            active: true,
+            phase: backlogMentionPopup.value.active ? backlogMentionPopup.value.phase : 'type',
+            x: rect.left,
+            y: rect.bottom + 6,
+        };
+        backlogMentionAnchor = {
+            node: range.startContainer,
+            startOffset: range.startOffset - atMatch[0].length,
+            endOffset: range.startOffset,
+        };
+    } else {
+        backlogMentionPopup.value.active = false;
+        backlogMentionAnchor = null;
+    }
+};
+
+const handleBacklogInput = () => {
+    saveBacklog();
+    backlogUpdateMentionState();
+};
+
+const handleBacklogPaste = (event) => {
+    const items = Array.from(event.clipboardData?.items ?? []);
+    const imageItem = items.find((i) => i.type.startsWith('image/'));
+    if (!imageItem) return;
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.execCommand('insertHTML', false, `<img src="${e.target.result}" class="backlog-img" />`);
+        saveBacklog();
+    };
+    reader.readAsDataURL(file);
+};
+
+const handleBacklogKeydown = (event) => {
+    if (backlogMentionPopup.value.active && event.key === 'Escape') {
+        backlogMentionPopup.value.active = false;
+        backlogMentionAnchor = null;
+    }
+};
+
+const setBacklogMentionPhase = (phase) => {
+    backlogMentionPopup.value.phase = phase;
+};
+
+const insertBacklogMention = (label, type) => {
+    if (!backlogMentionAnchor) return;
+    const { node, startOffset, endOffset } = backlogMentionAnchor;
+    const range = document.createRange();
+    const end = Math.min(endOffset, node.textContent?.length ?? endOffset);
+    range.setStart(node, startOffset);
+    range.setEnd(node, end);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    range.deleteContents();
+    const chip = document.createElement('span');
+    chip.className = 'backlog-mention';
+    chip.setAttribute('data-mention-type', type);
+    chip.setAttribute('contenteditable', 'false');
+    chip.textContent = `@${label}`;
+    const rng = sel.getRangeAt(0);
+    rng.insertNode(chip);
+    rng.setStartAfter(chip);
+    rng.setEndAfter(chip);
+    sel.removeAllRanges();
+    sel.addRange(rng);
+    document.execCommand('insertText', false, '\u00a0');
+    backlogMentionPopup.value.active = false;
+    backlogMentionAnchor = null;
+    saveBacklog();
+};
 
 const formatFileSize = (bytes) => {
   if (!bytes || Number.isNaN(bytes)) {
@@ -761,6 +874,7 @@ watch(
   () => selectedProjectId.value,
   (projectId) => {
     expandedBoardColumn.value = null;
+    currentTasksExpandedColumn.value = null;
     createForm.project_id = projectId;
     createForm.status = 'todo';
     createForm.progress = 0;
@@ -778,14 +892,55 @@ watch(
 
 const notesByStatus = (status) => props.notes.filter((note) => note.status === status);
 
+const todayTasksByStatus = computed(() => ({
+  todo: props.notes.filter((n) => n.status === 'todo'),
+  in_progress: props.notes.filter((n) => n.status === 'in_progress'),
+  done: props.notes.filter((n) => n.status === 'done'),
+}));
+
+const todayNotesByStatus = (status) => todayTasksByStatus.value[status] ?? [];
+
+const isPersistedStatus = (status) => props.statuses.includes(status);
+
+const dashboardKpis = computed(() => {
+  const allProjects = props.projects.data ?? [];
+  const total = allProjects.length;
+  const done = allProjects.filter((p) => p.is_done).length;
+  const inProgress = allProjects.filter((p) => !p.is_done && p.completion_percentage > 0).length;
+  const notStarted = allProjects.filter((p) => p.completion_percentage === 0).length;
+  const avgCompletion = total === 0 ? 0 : Math.round(allProjects.reduce((sum, p) => sum + p.completion_percentage, 0) / total);
+
+  return { total, done, inProgress, notStarted, avgCompletion };
+});
+
 const isInProgressExpanded = computed(() => expandedBoardColumn.value === 'in_progress');
 
-const isColumnPreview = (status) => isInProgressExpanded.value && status !== 'in_progress';
+const isBacklogExpanded = computed(() => expandedBoardColumn.value === 'backlog');
+
+const isColumnPreview = (status) => expandedBoardColumn.value ? expandedBoardColumn.value !== status : status === 'backlog';
+
+const currentTasksExpandedColumn = ref(null);
+
+const isCurrentTasksTodoExpanded = computed(() => currentTasksExpandedColumn.value === 'todo');
+
+const isCurrentTasksBacklogExpanded = computed(() => currentTasksExpandedColumn.value === 'backlog');
+
+const isCurrentTasksColumnPreview = (status) => currentTasksExpandedColumn.value ? currentTasksExpandedColumn.value !== status : status === 'backlog';
 
 const boardColumnsClass = computed(() =>
-  isInProgressExpanded.value
-    ? 'grid gap-4 lg:grid-cols-[0.5fr_9fr_0.5fr]'
-    : 'grid gap-4 lg:grid-cols-3'
+  expandedBoardColumn.value === 'in_progress'
+    ? 'grid gap-4 lg:grid-cols-[1fr_1fr_17fr_1fr]'
+    : expandedBoardColumn.value === 'backlog'
+      ? 'grid gap-4 lg:grid-cols-[17fr_1fr_1fr_1fr]'
+      : 'grid gap-4 lg:grid-cols-[1fr_6.333fr_6.333fr_6.333fr]'
+);
+
+const currentTasksColumnsClass = computed(() =>
+  currentTasksExpandedColumn.value === 'todo'
+    ? 'grid gap-4 lg:grid-cols-[1fr_17fr_1fr_1fr]'
+    : currentTasksExpandedColumn.value === 'backlog'
+      ? 'grid gap-4 lg:grid-cols-[17fr_1fr_1fr_1fr]'
+      : 'grid gap-4 lg:grid-cols-[1fr_6.333fr_6.333fr_6.333fr]'
 );
 
 const boardColumnClasses = (status) => [
@@ -794,8 +949,26 @@ const boardColumnClasses = (status) => [
   dragOverStatus.value === status ? 'ring-2 ring-blue-400 ring-offset-2' : '',
 ];
 
+const currentTasksColumnClasses = (status) => [
+  'min-h-[360px] rounded-xl border border-gray-200 bg-gray-50 p-4 transition-all duration-300',
+  isCurrentTasksColumnPreview(status) ? 'hidden lg:flex lg:flex-col lg:overflow-hidden lg:px-2' : '',
+  dragOverStatus.value === status ? 'ring-2 ring-blue-400 ring-offset-2' : '',
+];
+
 const toggleInProgressExpansion = () => {
   expandedBoardColumn.value = isInProgressExpanded.value ? null : 'in_progress';
+};
+
+const toggleBacklogExpansion = () => {
+  expandedBoardColumn.value = isBacklogExpanded.value ? null : 'backlog';
+};
+
+const toggleCurrentTasksTodoExpansion = () => {
+  currentTasksExpandedColumn.value = isCurrentTasksTodoExpanded.value ? null : 'todo';
+};
+
+const toggleCurrentTasksBacklogExpansion = () => {
+  currentTasksExpandedColumn.value = isCurrentTasksBacklogExpanded.value ? null : 'backlog';
 };
 
 const projectProgressClass = (project) =>
@@ -1524,10 +1697,21 @@ const onDragEnd = () => {
 };
 
 const onDragOverColumn = (status) => {
+  if (!isPersistedStatus(status)) {
+    dragOverStatus.value = null;
+    return;
+  }
+
   dragOverStatus.value = status;
 };
 
 const moveDraggedNoteTo = (status) => {
+  if (!isPersistedStatus(status)) {
+    draggingNoteId.value = null;
+    dragOverStatus.value = null;
+    return;
+  }
+
   const noteId = draggingNoteId.value;
 
   if (!noteId) {
@@ -2019,9 +2203,569 @@ const deleteProject = (projectId) => {
                     </button>
                   </div>
                 </div>
+                <div
+                  class="mt-2 flex h-8 items-center justify-end transition-opacity"
+                  :class="projectListView === 'gantt' && ganttPerspective === 'day' ? 'opacity-100' : 'pointer-events-none opacity-0'"
+                  :aria-hidden="!(projectListView === 'gantt' && ganttPerspective === 'day')"
+                >
+                  <div class="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 whitespace-nowrap">
+                    <button
+                      v-for="[tabKey, tabLabel] in [['tasks', 'My Current Tasks'], ['backlog', 'Backlog'], ['dashboard', 'Dashboard']]"
+                      :key="tabKey"
+                      type="button"
+                      class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition"
+                      :class="ganttDaySubView === tabKey ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                      @click="ganttDaySubView = tabKey"
+                    >
+                      {{ tabLabel }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <p class="text-sm text-gray-500">Manage projects and select one to view its board.</p>
+
+            <!-- Day sub-view content (above calendar) -->
+            <div v-if="projectListView === 'gantt' && ganttPerspective === 'day'" class="mt-4">
+              <!-- My Current Tasks -->
+              <template v-if="ganttDaySubView === 'tasks'">
+                <div v-if="!selectedProject" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
+                  Select a project to see its tasks.
+                </div>
+                <div v-else class="space-y-4">
+                  <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h3 class="text-base font-semibold text-gray-900">{{ selectedProject.name }} Current Tasks</h3>
+                        <p class="text-sm text-gray-500">Use the same kanban flow here: add items in To Do, drag cards across columns, and expand To Do when you need more room.</p>
+                      </div>
+                      <div class="flex flex-wrap gap-2 text-xs text-gray-600">
+                        <span class="rounded-full border border-gray-300 bg-gray-50 px-2 py-1">Total: {{ props.notes.length }}</span>
+                        <span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-blue-700">In progress: {{ todayNotesByStatus('in_progress').length }}</span>
+                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">Done: {{ todayNotesByStatus('done').length }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div :class="currentTasksColumnsClass">
+                    <section
+                      v-for="column in kanbanColumns"
+                      :key="`day-column-${column.key}`"
+                      :class="currentTasksColumnClasses(column.key)"
+                      @dragover.prevent="onDragOverColumn(column.key)"
+                      @dragleave="dragOverStatus = null"
+                      @drop="moveDraggedNoteTo(column.key)"
+                    >
+                      <template v-if="isCurrentTasksColumnPreview(column.key)">
+                        <div class="h-full items-center justify-between lg:flex lg:flex-col lg:gap-4">
+                          <button
+                            v-if="column.key === 'backlog'"
+                            type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center self-center rounded-md border border-violet-300 bg-violet-50 text-violet-700 transition hover:bg-violet-100"
+                            title="Maximize Backlog column"
+                            aria-label="Maximize Backlog column"
+                            @click.stop="toggleCurrentTasksBacklogExpansion"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                            </svg>
+                          </button>
+                          <div class="flex flex-1 items-center justify-center overflow-hidden">
+                            <p class="text-center text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400 [writing-mode:vertical-rl] rotate-180">
+                              {{ column.title }}
+                            </p>
+                          </div>
+
+                          <span class="self-center rounded-full border px-2 py-0.5 text-xs font-medium" :class="column.badgeClass">
+                            {{ todayNotesByStatus(column.key).length }}
+                          </span>
+                        </div>
+                      </template>
+
+                      <template v-else>
+                        <div class="mb-3 flex items-start justify-between gap-2">
+                          <div>
+                            <h3 class="text-base font-semibold text-gray-900">{{ column.title }}</h3>
+                            <p class="text-xs text-gray-500">{{ column.description }}</p>
+                          </div>
+                          <div class="flex items-center gap-1.5">
+                            <button
+                              v-if="column.key === 'backlog'"
+                              type="button"
+                              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-violet-300 bg-violet-50 text-violet-700 transition hover:bg-violet-100"
+                              :title="isCurrentTasksBacklogExpanded ? 'Minimize Backlog column' : 'Maximize Backlog column'"
+                              :aria-label="isCurrentTasksBacklogExpanded ? 'Minimize Backlog column' : 'Maximize Backlog column'"
+                              @click.stop="toggleCurrentTasksBacklogExpansion"
+                            >
+                              <svg v-if="!isCurrentTasksBacklogExpanded" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                              </svg>
+                              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H3V3m0 0 5 5m4 0 5-5m0 0v5h-5m0 4h5v5m0 0-5-5m-4 0-5 5m0 0v-5h5" />
+                              </svg>
+                            </button>
+                            <button
+                              v-if="column.key === 'todo'"
+                              type="button"
+                              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                              title="Add item"
+                              @click="openCreateModal"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                              </svg>
+                            </button>
+                            <button
+                              v-if="column.key === 'todo'"
+                              type="button"
+                              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                              :title="isCurrentTasksTodoExpanded ? 'Minimize To Do column' : 'Maximize To Do column'"
+                              :aria-label="isCurrentTasksTodoExpanded ? 'Minimize To Do column' : 'Maximize To Do column'"
+                              @click="toggleCurrentTasksTodoExpansion"
+                            >
+                              <svg v-if="!isCurrentTasksTodoExpanded" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                              </svg>
+                              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H3V3m0 0 5 5m4 0 5-5m0 0v5h-5m0 4h5v5m0 0-5-5m-4 0-5 5m0 0v-5h5" />
+                              </svg>
+                            </button>
+                            <span class="rounded-full border px-2 py-0.5 text-xs font-medium" :class="column.badgeClass">
+                              {{ todayNotesByStatus(column.key).length }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="space-y-3">
+                          <template v-if="column.key === 'backlog'">
+                            <div class="rounded-lg border border-dashed border-violet-300 bg-violet-50/60 p-4 text-sm text-violet-900">
+                              <p class="font-semibold">Backlog sync is not connected yet.</p>
+                              <p class="mt-1 text-xs text-violet-700">This lane is reserved for the upcoming day-view backlog todo list.</p>
+                            </div>
+                          </template>
+
+                          <article
+                            v-else
+                            v-for="note in todayNotesByStatus(column.key)"
+                            :key="`day-task-${note.id}`"
+                            class="cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:cursor-grabbing"
+                            draggable="true"
+                            @dragstart="onDragStart($event, note.id)"
+                            @dragend="onDragEnd"
+                          >
+                            <template v-if="editForm.id === note.id">
+                              <div class="space-y-2">
+                                <input
+                                  v-model="editForm.title"
+                                  type="text"
+                                  class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                >
+                                <textarea
+                                  v-model="editForm.content"
+                                  rows="3"
+                                  class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                ></textarea>
+                                <div>
+                                  <div class="mb-1 flex items-center justify-between gap-2">
+                                    <label class="block text-xs font-medium text-gray-700">Clipboard / Files (optional)</label>
+                                    <button
+                                      type="button"
+                                      class="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                      @click.stop="pasteFromClipboard(editForm, 'clipboard_text')"
+                                    >
+                                      Paste text
+                                    </button>
+                                  </div>
+
+                                  <div
+                                    class="rounded-lg border border-dashed p-3 transition"
+                                    :class="isEditTaskDropActive ? 'border-indigo-400 bg-indigo-50/60' : 'border-gray-300 bg-gray-50/40'"
+                                    role="button"
+                                    tabindex="0"
+                                    @dragover.prevent="isEditTaskDropActive = true"
+                                    @dragleave="isEditTaskDropActive = false"
+                                    @drop="onEditTaskDrop"
+                                    @paste="onEditTaskPaste"
+                                    @click.stop="openEditTaskFilePicker"
+                                  >
+                                    <p class="mb-2 text-[11px] text-gray-500">Paste text/screenshots, drag & drop files, or click this area to upload from PC.</p>
+
+                                    <input
+                                      ref="editTaskFileInput"
+                                      type="file"
+                                      multiple
+                                      class="hidden"
+                                      @change="onEditTaskAttachmentsSelected"
+                                    >
+
+                                    <textarea
+                                      v-model="editForm.clipboard_text"
+                                      rows="2"
+                                      class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      placeholder="Paste copied screen text"
+                                      @click.stop
+                                    ></textarea>
+
+                                    <div class="mt-2">
+                                      <button
+                                        type="button"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+                                        title="Attach files"
+                                        aria-label="Attach files"
+                                        @click.stop="openEditTaskFilePicker"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M8 3a5 5 0 015 5v5a3 3 0 11-6 0V8a1 1 0 112 0v5a1 1 0 102 0V8a3 3 0 10-6 0v5a5 5 0 1010 0V8a1 1 0 112 0v5a7 7 0 11-14 0V8a5 5 0 015-5z" clip-rule="evenodd" />
+                                        </svg>
+                                      </button>
+                                    </div>
+
+                                    <div v-if="editForm.attachments.length" class="mt-3 rounded-md border border-gray-200 bg-white p-2" @click.stop>
+                                      <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Attached files</p>
+                                      <ul class="max-h-36 space-y-1 overflow-auto">
+                                        <li
+                                          v-for="(file, index) in editForm.attachments"
+                                          :key="`${file.name}-${index}`"
+                                          class="flex items-center justify-between gap-2 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                                        >
+                                          <div class="flex min-w-0 items-center gap-2">
+                                            <button
+                                              v-if="file.__previewUrl"
+                                              type="button"
+                                              class="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-100"
+                                              :title="`Preview ${file.name}`"
+                                              @click.stop="openAttachmentPreview(file)"
+                                            >
+                                              <img
+                                                :src="file.__previewUrl"
+                                                alt="Preview"
+                                                class="h-full w-full object-cover"
+                                              >
+                                            </button>
+                                            <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-500">
+                                              FILE
+                                            </div>
+                                            <div class="min-w-0">
+                                              <p class="truncate font-medium" :title="file.name">{{ index + 1 }}. {{ file.name }}</p>
+                                              <p class="text-[10px] text-gray-500">{{ formatFileSize(file.size) }}</p>
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                                            @click.stop="removeEditTaskAttachment(index)"
+                                          >
+                                            x
+                                          </button>
+                                        </li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                  <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-700">Assignees</label>
+                                    <select
+                                      v-model="editForm.assignee_ids"
+                                      multiple
+                                      class="block min-h-[108px] w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    >
+                                      <option v-for="user in userOptions" :key="`edit-note-assignee-${user.id}`" :value="user.id">
+                                        {{ user.name }}
+                                      </option>
+                                    </select>
+                                    <p v-if="editForm.errors.assignee_ids" class="mt-1 text-xs text-red-600">{{ editForm.errors.assignee_ids }}</p>
+                                  </div>
+                                  <div class="rounded-md border border-gray-200 bg-gray-50 p-2">
+                                    <p class="text-xs font-medium text-gray-700">Mentions</p>
+                                    <div class="mt-2 flex gap-2">
+                                      <select v-model="editNoteMentionType" class="rounded-md border-gray-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option v-for="item in mentionTypes" :key="`edit-note-mention-type-${item.value}`" :value="item.value">{{ item.label }}</option>
+                                      </select>
+                                      <input v-model="editNoteMentionQuery" type="text" class="min-w-0 flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Name to mention">
+                                      <button type="button" class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click.stop="fetchMentionSuggestions(editNoteMentionType, editNoteMentionQuery, editNoteMentionSuggestions)">Find</button>
+                                    </div>
+                                    <div v-if="editNoteMentionSuggestions.length" class="mt-2 flex flex-wrap gap-2">
+                                      <button
+                                        v-for="item in editNoteMentionSuggestions"
+                                        :key="`edit-note-mention-${item.type}-${item.id ?? item.name}`"
+                                        type="button"
+                                        class="rounded-full border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                                        @click.stop="addMention(editForm, item)"
+                                      >
+                                        @{{ item.type }}/{{ item.name }}
+                                      </button>
+                                    </div>
+                                    <div v-if="editForm.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+                                      <span v-for="(mention, mentionIndex) in editForm.mentions" :key="`edit-note-selected-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`" class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
+                                        @{{ mention.type }}/{{ mention.name }}
+                                        <button type="button" class="text-gray-500 hover:text-red-600" @click.stop="removeMention(editForm, mentionIndex)">x</button>
+                                      </span>
+                                    </div>
+                                    <p v-if="editForm.errors.mentions" class="mt-1 text-xs text-red-600">{{ editForm.errors.mentions }}</p>
+                                  </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                  <select
+                                    v-model="editForm.status"
+                                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  >
+                                    <option v-for="option in columns" :key="option.key" :value="option.key">
+                                      {{ option.title }}
+                                    </option>
+                                  </select>
+                                  <select
+                                    v-model="editForm.progress"
+                                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  >
+                                    <option v-for="step in progressSteps" :key="step" :value="step">
+                                      {{ step }}%
+                                    </option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label class="mb-1 block text-xs font-medium text-gray-700">Estimated hours</label>
+                                  <input
+                                    v-model.number="editForm.estimated_time_hours"
+                                    type="number"
+                                    min="0.25"
+                                    max="24"
+                                    step="0.25"
+                                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  >
+                                  <p v-if="editForm.errors.estimated_time_hours" class="mt-1 text-xs text-red-600">{{ editForm.errors.estimated_time_hours }}</p>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+                                    :disabled="editForm.processing"
+                                    title="Save"
+                                    @click.stop="updateNote"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3-3a1 1 0 011.42-1.42L9 11.586l6.546-6.546a1 1 0 011.158-.21z" clip-rule="evenodd" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-100"
+                                    title="Cancel"
+                                    @click.stop="cancelEditing"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </template>
+
+                            <template v-else>
+                              <div class="flex items-start justify-between gap-2">
+                                <h4 class="text-sm font-semibold text-gray-900">{{ note.title }}</h4>
+                              </div>
+                              <p v-if="note.content" class="mt-1 text-sm text-gray-700">{{ note.content }}</p>
+                              <div v-if="note.clipboard_text" class="mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
+                                <div class="mb-1 flex items-center justify-between gap-2">
+                                  <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Clipboard</p>
+                                  <button
+                                    type="button"
+                                    class="inline-flex items-center rounded-md border border-indigo-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                    @click.stop="copyToClipboard(note.clipboard_text)"
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                                <p class="whitespace-pre-wrap text-xs text-indigo-900">{{ note.clipboard_text }}</p>
+                              </div>
+
+                              <div v-if="note.attachments?.length" class="mt-2 flex flex-wrap gap-2">
+                                <a
+                                  v-for="attachment in note.attachments"
+                                  :key="`day-note-attachment-${note.id}-${attachment.path}`"
+                                  :href="attachment.url"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 transition hover:bg-gray-50"
+                                >
+                                  {{ attachment.original_name }}
+                                </a>
+                              </div>
+
+                              <div v-if="note.assignee_names?.length" class="mt-2 flex flex-wrap gap-2">
+                                <span
+                                  v-for="assignee in note.assignee_names"
+                                  :key="`day-note-assignee-${note.id}-${assignee}`"
+                                  class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800"
+                                >
+                                  {{ assignee }}
+                                </span>
+                              </div>
+
+                              <div v-if="note.mentions?.length" class="mt-2 flex flex-wrap gap-2">
+                                <span
+                                  v-for="(mention, mentionIndex) in note.mentions"
+                                  :key="`day-note-mention-${note.id}-${mention.type}-${mention.id ?? mention.name}-${mentionIndex}`"
+                                  class="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-800"
+                                >
+                                  @{{ mention.type }}/{{ mention.name }}
+                                </span>
+                              </div>
+
+                              <p v-if="note.estimated_time_hours !== null && note.estimated_time_hours !== undefined" class="mt-2 text-xs font-semibold text-amber-700">
+                                Estimate: {{ note.estimated_time_hours }}h
+                              </p>
+
+                              <div v-if="note.status === 'in_progress'" class="mt-2">
+                                <div class="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
+                                  <span>Progress</span>
+                                  <span>{{ note.progress }}%</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  class="block w-full rounded-full border border-blue-200 bg-white p-1"
+                                  title="Click to advance progress"
+                                  @click.stop="advanceProgress(note)"
+                                >
+                                  <div class="h-2 w-full rounded-full bg-blue-100">
+                                    <div class="h-2 rounded-full bg-blue-500 transition-all duration-200" :style="{ width: `${note.progress}%` }"></div>
+                                  </div>
+                                </button>
+                                <p class="mt-1 text-[11px] text-gray-500">Click the line to move to next step.</p>
+                              </div>
+
+                              <div class="mt-3 flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                  title="Edit"
+                                  @click.stop="startEditing(note)"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M17.414 2.586a2 2 0 010 2.828l-8.5 8.5a1 1 0 01-.45.263l-4 1a1 1 0 01-1.213-1.213l1-4a1 1 0 01.263-.45l8.5-8.5a2 2 0 012.828 0z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 bg-red-50 text-red-700 transition hover:bg-red-100"
+                                  title="Delete"
+                                  @click.stop="deleteNote(note.id)"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.366-.446.911-.7 1.486-.7h.514c.575 0 1.12.254 1.486.7L12.6 4H15a1 1 0 110 2h-.533l-.804 9.646A2 2 0 0111.67 17H8.33a2 2 0 01-1.993-1.354L5.533 6H5a1 1 0 110-2h2.4l.857-.901zM8 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </template>
+                          </article>
+
+                          <p v-if="column.key !== 'backlog' && todayNotesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
+                            Drop an item here
+                          </p>
+                        </div>
+                      </template>
+                    </section>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Backlog -->
+              <template v-if="ganttDaySubView === 'backlog'">
+                <div class="rounded-lg border border-gray-200 bg-white">
+                  <div class="border-b border-gray-200 px-4 py-3">
+                    <h3 class="text-sm font-semibold text-gray-900">Backlog — Scrapyard</h3>
+                    <p class="text-xs text-gray-500">
+                      Write ideas, paste images, mention
+                      <span class="font-medium text-violet-700">@Team</span> or
+                      <span class="font-medium text-blue-700">@User</span>. Saved locally.
+                    </p>
+                  </div>
+                  <div
+                    ref="backlogEditorRef"
+                    contenteditable="true"
+                    class="backlog-editor min-h-48 w-full rounded-b-lg p-4 text-sm text-gray-700 focus:outline-none"
+                    data-placeholder="Start writing items… paste images, mention @Team or @User"
+                    @input="handleBacklogInput"
+                    @paste="handleBacklogPaste"
+                    @keydown="handleBacklogKeydown"
+                  ></div>
+                </div>
+
+                <!-- Mention dropdown -->
+                <Teleport to="body">
+                  <div
+                    v-if="backlogMentionPopup.active"
+                    class="fixed z-[9999] min-w-[180px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+                    :style="{ left: `${backlogMentionPopup.x}px`, top: `${backlogMentionPopup.y}px` }"
+                  >
+                    <template v-if="backlogMentionPopup.phase === 'type'">
+                      <div class="border-b border-gray-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Mention</div>
+                      <button class="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" @mousedown.prevent="setBacklogMentionPhase('team')">
+                        <span class="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">T</span>
+                        Team
+                      </button>
+                      <button class="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50" @mousedown.prevent="setBacklogMentionPhase('user')">
+                        <span class="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">U</span>
+                        User
+                      </button>
+                    </template>
+                    <template v-else-if="backlogMentionPopup.phase === 'team'">
+                      <div class="flex items-center gap-1 border-b border-gray-100 px-2 py-1.5">
+                        <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" @mousedown.prevent="setBacklogMentionPhase('type')">←</button>
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Teams</span>
+                      </div>
+                      <div class="max-h-52 overflow-y-auto">
+                        <button v-for="team in managedTeams" :key="team.id" class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" @mousedown.prevent="insertBacklogMention(team.name, 'team')">
+                          <span class="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{{ team.name[0]?.toUpperCase() }}</span>
+                          <span class="truncate">{{ team.name }}</span>
+                        </button>
+                        <p v-if="!managedTeams.length" class="px-3 py-2 text-xs text-gray-400">No teams found</p>
+                      </div>
+                    </template>
+                    <template v-else-if="backlogMentionPopup.phase === 'user'">
+                      <div class="flex items-center gap-1 border-b border-gray-100 px-2 py-1.5">
+                        <button class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" @mousedown.prevent="setBacklogMentionPhase('type')">←</button>
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Users</span>
+                      </div>
+                      <div class="max-h-52 overflow-y-auto">
+                        <button v-for="user in managedUsers" :key="user.id" class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" @mousedown.prevent="insertBacklogMention(user.name, 'user')">
+                          <span class="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">{{ user.name?.[0]?.toUpperCase() }}</span>
+                          <span class="truncate">{{ user.name }}</span>
+                        </button>
+                        <p v-if="!managedUsers.length" class="px-3 py-2 text-xs text-gray-400">No users found</p>
+                      </div>
+                    </template>
+                  </div>
+                </Teleport>
+              </template>
+
+              <!-- Dashboard -->
+              <template v-if="ganttDaySubView === 'dashboard'">
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div class="rounded-xl border border-gray-200 bg-white p-4 text-center">
+                    <p class="text-3xl font-bold text-gray-900">{{ dashboardKpis.total }}</p>
+                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Total Projects</p>
+                  </div>
+                  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+                    <p class="text-3xl font-bold text-emerald-700">{{ dashboardKpis.done }}</p>
+                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-emerald-600">Completed</p>
+                  </div>
+                  <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center">
+                    <p class="text-3xl font-bold text-blue-700">{{ dashboardKpis.inProgress }}</p>
+                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-blue-600">In Progress</p>
+                  </div>
+                  <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
+                    <p class="text-3xl font-bold text-gray-700">{{ dashboardKpis.notStarted }}</p>
+                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Not Started</p>
+                  </div>
+                  <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-center">
+                    <p class="text-3xl font-bold text-indigo-700">{{ dashboardKpis.avgCompletion }}%</p>
+                    <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">Avg Completion</p>
+                  </div>
+                </div>
+              </template>
+            </div>
 
             <div class="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-3">
               <div class="relative border-b border-gray-200 pb-3">
@@ -2320,9 +3064,9 @@ const deleteProject = (projectId) => {
                 </div>
               </div>
             </div>
-          </div>
-          </div>
 
+          </div>
+          </div>
 
         </div>
         <div v-if="selectedProject" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -2378,7 +3122,7 @@ const deleteProject = (projectId) => {
 
           <div :class="boardColumnsClass">
             <section
-              v-for="column in columns"
+              v-for="column in kanbanColumns"
               :key="column.key"
               :class="boardColumnClasses(column.key)"
               @dragover.prevent="onDragOverColumn(column.key)"
@@ -2387,6 +3131,18 @@ const deleteProject = (projectId) => {
             >
               <template v-if="isColumnPreview(column.key)">
                 <div class="h-full items-center justify-between lg:flex lg:flex-col lg:gap-4">
+                  <button
+                    v-if="column.key === 'backlog'"
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center self-center rounded-md border border-violet-300 bg-violet-50 text-violet-700 transition hover:bg-violet-100"
+                    title="Maximize Backlog column"
+                    aria-label="Maximize Backlog column"
+                    @click.stop="toggleBacklogExpansion"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                    </svg>
+                  </button>
                   <button
                     v-if="column.key === 'todo'"
                     type="button"
@@ -2418,6 +3174,21 @@ const deleteProject = (projectId) => {
                     <p class="text-xs text-gray-500">{{ column.description }}</p>
                   </div>
                   <div class="flex items-center gap-1.5">
+                    <button
+                      v-if="column.key === 'backlog'"
+                      type="button"
+                      class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-violet-300 bg-violet-50 text-violet-700 transition hover:bg-violet-100"
+                      :title="isBacklogExpanded ? 'Minimize Backlog column' : 'Maximize Backlog column'"
+                      :aria-label="isBacklogExpanded ? 'Minimize Backlog column' : 'Maximize Backlog column'"
+                      @click.stop="toggleBacklogExpansion"
+                    >
+                      <svg v-if="!isBacklogExpanded" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5m0-5 6 6m3-6h5v5m0-5-6 6m6 3v5h-5m5 0-6-6M8 17H3v-5m0 5 6-6" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H3V3m0 0 5 5m4 0 5-5m0 0v5h-5m0 4h5v5m0 0-5-5m-4 0-5 5m0 0v-5h5" />
+                      </svg>
+                    </button>
                     <button
                       v-if="column.key === 'todo'"
                       type="button"
@@ -2451,7 +3222,15 @@ const deleteProject = (projectId) => {
                 </div>
 
                 <div class="space-y-3">
+                  <template v-if="column.key === 'backlog'">
+                    <div class="rounded-lg border border-dashed border-violet-300 bg-violet-50/60 p-4 text-sm text-violet-900">
+                      <p class="font-semibold">Backlog sync is not connected yet.</p>
+                      <p class="mt-1 text-xs text-violet-700">This lane will later mirror the simple backlog todo list from the day view.</p>
+                    </div>
+                  </template>
+
                   <article
+                    v-else
                     v-for="note in notesByStatus(column.key)"
                     :key="note.id"
                     class="cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm active:cursor-grabbing"
@@ -2769,7 +3548,7 @@ const deleteProject = (projectId) => {
                     </template>
                   </article>
 
-                  <p v-if="notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
+                  <p v-if="column.key !== 'backlog' && notesByStatus(column.key).length === 0" class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
                     Drop an item here
                   </p>
                 </div>
@@ -3482,6 +4261,42 @@ const deleteProject = (projectId) => {
 </template>
 
 <style scoped>
+/* Backlog rich editor */
+:global(.backlog-editor:empty::before) {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  display: block;
+}
+
+:global(.backlog-mention) {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background-color: #ede9fe;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6d28d9;
+  cursor: default;
+  user-select: none;
+  margin: 0 2px;
+  vertical-align: middle;
+}
+
+:global(.backlog-mention[data-mention-type='user']) {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+:global(.backlog-img) {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  margin: 0.5rem 0;
+  display: block;
+}
+
 /* Prevent text selection on the whole page while dragging a Gantt bar */
 :global(body.gantt-dragging) {
   user-select: none;

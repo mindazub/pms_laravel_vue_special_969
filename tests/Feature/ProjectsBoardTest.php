@@ -115,6 +115,12 @@ class ProjectsBoardTest extends TestCase
                 ->has('users', 2)
                 ->where('defaultTaskEstimateHours', 1)
                 ->where('progressSteps', [0, 25, 50, 75, 100])
+                ->where('notes.0.title', 'Define sitemap')
+                ->where('notes.0.status', Note::STATUS_TODO)
+                ->where('notes.1.title', 'Build wireframes')
+                ->where('notes.1.status', Note::STATUS_IN_PROGRESS)
+                ->where('notes.2.title', 'Ship handoff')
+                ->where('notes.2.status', Note::STATUS_DONE)
             );
     }
 
