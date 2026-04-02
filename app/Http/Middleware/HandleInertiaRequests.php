@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Scrapboard;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -31,6 +32,31 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
+        $scrapboardNavigation = collect();
+
+        if ($user !== null) {
+            $scrapboardNavigation = Scrapboard::query()
+                ->visibleTo($user)
+                ->orderBy('name')
+                ->limit(12)
+                ->get(['id', 'name'])
+                ->map(fn (Scrapboard $scrapboard): array => [
+                    'id' => $scrapboard->id,
+                    'name' => $scrapboard->name,
+                ]);
+
+            foreach (['Scrapboard 1', 'Scrapboard 2'] as $index => $fallbackName) {
+                if ($scrapboardNavigation->count() > $index) {
+                    continue;
+                }
+
+                $scrapboardNavigation->push([
+                    'id' => null,
+                    'name' => $fallbackName,
+                ]);
+            }
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -41,6 +67,7 @@ class HandleInertiaRequests extends Middleware
                         'role_names' => $user->getRoleNames()->values()->all(),
                     ],
             ],
+            'scrapboardNavigation' => $scrapboardNavigation->values()->all(),
         ];
     }
 }

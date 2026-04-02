@@ -8,6 +8,7 @@ use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects2025Controller;
+use App\Http\Controllers\ScrapboardController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\UserRoleController;
 use Illuminate\Foundation\Application;
@@ -38,6 +39,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/mentions/suggestions', MentionSuggestionController::class)
         ->name('mentions.suggestions');
+
+    Route::get('/scrapboards', [ScrapboardController::class, 'index'])
+        ->name('scrapboards.index');
+
+    Route::get('/scrapboards/{scrapboard}', [ScrapboardController::class, 'show'])
+        ->name('scrapboards.show');
+
+    Route::post('/scrapboards', [ScrapboardController::class, 'store'])
+        ->name('scrapboards.store');
+
+    Route::put('/scrapboards/{scrapboard}', [ScrapboardController::class, 'update'])
+        ->name('scrapboards.update');
+
+    Route::delete('/scrapboards/{scrapboard}', [ScrapboardController::class, 'destroy'])
+        ->name('scrapboards.destroy');
 
     Route::get('/users/roles', [UserRoleController::class, 'index'])
         ->name('users.roles.index');

@@ -21,6 +21,8 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
-        "vue-sonner": "^2.0.9"
+        "sweetalert2": "^11.26.24",
+        "vue-sonner": "^2.0.9",
+        "xlsx": "^0.18.5"
     }
 }

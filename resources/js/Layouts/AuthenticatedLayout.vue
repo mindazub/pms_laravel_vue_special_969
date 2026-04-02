@@ -6,85 +6,196 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { confirmDangerAction, promptForName } from '@/Utils/scrapboardDialogs';
 
 const showingNavigationDropdown = ref(false);
 const navigationPosition = ref('top');
+const page = usePage();
 
-const navigationLinks = computed(() => [
+const scrapboardChildren = computed(() => {
+    const boards = Array.isArray(page.props.scrapboardNavigation) ? page.props.scrapboardNavigation : [];
+
+    return [
+        ...boards.map((board) => ({
+            label: board?.name ?? 'Scrapboard',
+            href: board?.id ? route('scrapboards.show', board.id) : route('scrapboards.index'),
+            active: board?.id
+                ? route().current('scrapboards.show') && String(route().params.scrapboard) === String(board.id)
+                : route().current('scrapboards.index'),
+            board,
+        })),
+        {
+            label: '+ New board',
+            action: 'create-scrapboard',
+            active: false,
+        },
+    ];
+});
+
+const createScrapboard = async () => {
+    const currentCount = Array.isArray(page.props.scrapboardNavigation) ? page.props.scrapboardNavigation.length : 0;
+    const name = await promptForName({
+        title: 'Create scrapboard',
+        inputLabel: 'Scrapboard name',
+        inputValue: `Scrapboard ${currentCount + 1}`,
+        placeholder: 'Enter a scrapboard name',
+        confirmButtonText: 'Create',
+    });
+
+    if (!name) {
+        return;
+    }
+
+    try {
+        const response = await window.axios.post(route('scrapboards.store'), {
+            name: name.trim(),
+        });
+
+        router.visit(route('scrapboards.show', response.data.id));
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const renameScrapboard = async (board) => {
+    if (!board?.id) {
+        return;
+    }
+
+    const name = await promptForName({
+        title: 'Rename scrapboard',
+        inputLabel: 'Scrapboard name',
+        inputValue: board.name ?? '',
+        placeholder: 'Enter a new scrapboard name',
+        confirmButtonText: 'Rename',
+    });
+
+    if (!name) {
+        return;
+    }
+
+    try {
+        await window.axios.put(route('scrapboards.update', board.id), {
+            name: name.trim(),
+        });
+
+        router.reload({ only: ['scrapboardNavigation', 'selectedScrapboard', 'scrapboards'] });
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const deleteScrapboard = async (board) => {
+    if (!board?.id) {
+        return;
+    }
+
+    const confirmed = await confirmDangerAction({
+        title: 'Delete scrapboard?',
+        text: `${board.name} and all sheet data inside it will be removed.`,
+        confirmButtonText: 'Delete board',
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await window.axios.delete(route('scrapboards.destroy', board.id));
+
+        const remainingBoards = Array.isArray(page.props.scrapboardNavigation)
+            ? page.props.scrapboardNavigation.filter((item) => String(item.id) !== String(board.id))
+            : [];
+
+        if (route().current('scrapboards.*')) {
+            const fallbackBoard = remainingBoards[0] ?? null;
+
+            if (fallbackBoard?.id) {
+                router.visit(route('scrapboards.show', fallbackBoard.id));
+                return;
+            }
+
+            router.visit(route('scrapboards.index'));
+            return;
+        }
+
+        router.reload({ only: ['scrapboardNavigation'] });
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const navigationSections = computed(() => [
     {
-        year: '2026',
-        label: 'Dashboard',
-        href: route('dashboard'),
-        active: route().current('dashboard'),
-    },
-    {
-        year: '2025',
-        label: 'Dashboard 2025',
-        href: route('dashboard.2025'),
-        active: route().current('dashboard.2025'),
-    },
-    {
-        year: '2026',
-        label: 'Projects',
-        href: route('projects.index'),
-        active: route().current('projects.index'),
-    },
-    {
-        year: '2026',
-        label: 'People',
-        href: route('people.index'),
-        active: route().current('people.*'),
-        children: [
+        heading: '2026',
+        links: [
             {
-                label: 'Overview',
+                label: 'Dashboard',
+                href: route('dashboard'),
+                active: route().current('dashboard'),
+            },
+            {
+                label: 'Projects',
+                href: route('projects.index'),
+                active: route().current('projects.index'),
+            },
+            {
+                label: 'People',
                 href: route('people.index'),
-                active: route().current('people.index'),
-            },
-            {
-                label: 'Teams',
-                href: route('people.teams.index'),
-                active: route().current('people.teams.index'),
-            },
-            {
-                label: 'Customers',
-                href: route('people.customers.index'),
-                active: route().current('people.customers.index'),
-            },
-            {
-                label: 'Users',
-                href: route('people.users.index'),
-                active: route().current('people.users.index'),
+                active: route().current('people.*'),
+                children: [
+                    {
+                        label: 'Overview',
+                        href: route('people.index'),
+                        active: route().current('people.index'),
+                    },
+                    {
+                        label: 'Teams',
+                        href: route('people.teams.index'),
+                        active: route().current('people.teams.index'),
+                    },
+                    {
+                        label: 'Customers',
+                        href: route('people.customers.index'),
+                        active: route().current('people.customers.index'),
+                    },
+                    {
+                        label: 'Users',
+                        href: route('people.users.index'),
+                        active: route().current('people.users.index'),
+                    },
+                ],
             },
         ],
     },
     {
-        year: '2025',
-        label: 'Projects 2025',
-        href: route('projects.2025'),
-        active: route().current('projects.2025'),
+        heading: '2025',
+        links: [
+            {
+                label: 'Dashboard 2025',
+                href: route('dashboard.2025'),
+                active: route().current('dashboard.2025'),
+            },
+            {
+                label: 'Projects 2025',
+                href: route('projects.2025'),
+                active: route().current('projects.2025'),
+            },
+        ],
+    },
+    {
+        heading: 'Scrapboards',
+        links: [
+            {
+                label: 'Scrapboard',
+                href: route('scrapboards.index'),
+                active: route().current('scrapboards.*'),
+                children: scrapboardChildren.value,
+            },
+        ],
     },
 ]);
-
-const navigationSections = computed(() => {
-    const groupedLinks = navigationLinks.value.reduce((sections, link) => {
-        const existingSection = sections.find((section) => section.year === link.year);
-
-        if (existingSection) {
-            existingSection.links.push(link);
-            return sections;
-        }
-
-        sections.push({
-            year: link.year,
-            links: [link],
-        });
-
-        return sections;
-    }, []);
-
-    return groupedLinks.sort((left, right) => right.year.localeCompare(left.year));
-});
 
 const isLeftNavigation = computed(() => navigationPosition.value === 'left');
 
@@ -141,8 +252,8 @@ onMounted(() => {
 
                 <div class="flex-1 px-4 py-6">
                     <nav class="space-y-6">
-                        <div v-for="section in navigationSections" :key="`sidebar-section-${section.year}`">
-                            <p class="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
+                        <div v-for="section in navigationSections" :key="`sidebar-section-${section.heading}`">
+                            <p class="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.heading }}</p>
                             <div class="space-y-1">
                                 <div v-for="link in section.links" :key="`sidebar-${link.label}`" class="space-y-1">
                                     <Link
@@ -152,14 +263,42 @@ onMounted(() => {
                                         {{ link.label }}
                                     </Link>
                                     <div v-if="link.children?.length" class="space-y-1 pl-4">
-                                        <Link
+                                        <div
                                             v-for="child in link.children"
                                             :key="`sidebar-${link.label}-${child.label}`"
-                                            :href="child.href"
-                                            :class="sidebarChildLinkClasses(child.active)"
+                                            class="group flex items-center gap-1"
                                         >
-                                            {{ child.label }}
-                                        </Link>
+                                            <button
+                                                v-if="child.action === 'create-scrapboard'"
+                                                type="button"
+                                                class="flex w-full items-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                                @click="createScrapboard"
+                                            >
+                                                {{ child.label }}
+                                            </button>
+                                            <template v-else>
+                                                <Link
+                                                    :href="child.href"
+                                                    :class="`${sidebarChildLinkClasses(child.active)} min-w-0 flex-1 justify-between`"
+                                                    :title="child.board ? 'Double-click to rename this scrapboard' : child.label"
+                                                    @dblclick.prevent.stop="child.board ? renameScrapboard(child.board) : null"
+                                                >
+                                                    <span class="truncate">{{ child.label }}</span>
+                                                </Link>
+                                                <button
+                                                    v-if="child.board"
+                                                    type="button"
+                                                    class="rounded-md p-1 text-rose-500 transition hover:bg-rose-50 hover:text-rose-600"
+                                                    :class="child.active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                                                    title="Delete scrapboard"
+                                                    @click.prevent="deleteScrapboard(child.board)"
+                                                >
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                        <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-.894.553L7.382 3H5a1 1 0 000 2h.293l.88 9.142A2 2 0 008.163 16h3.674a2 2 0 001.99-1.858L14.707 5H15a1 1 0 100-2h-2.382l-.224-.447A1 1 0 0011.5 2h-3zM8 7a1 1 0 012 0v5a1 1 0 11-2 0V7zm4-1a1 1 0 00-1 1v5a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -244,8 +383,8 @@ onMounted(() => {
                                 class="hidden gap-6 sm:ms-10 sm:flex sm:items-start"
                                 v-if="!isLeftNavigation"
                             >
-                                <div v-for="section in navigationSections" :key="`top-section-${section.year}`" class="flex items-start gap-3">
-                                    <span class="mr-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</span>
+                                <div v-for="section in navigationSections" :key="`top-section-${section.heading}`" class="flex items-start gap-3">
+                                    <span class="mr-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.heading }}</span>
                                     <div class="flex items-start gap-4">
                                         <div v-for="link in section.links" :key="`top-${link.label}`" class="space-y-1">
                                             <NavLink
@@ -255,14 +394,25 @@ onMounted(() => {
                                                 {{ link.label }}
                                             </NavLink>
                                             <div v-if="link.children?.length" class="flex flex-wrap gap-1 pl-1">
-                                                <Link
-                                                    v-for="child in link.children"
-                                                    :key="`top-${link.label}-${child.label}`"
-                                                    :href="child.href"
-                                                    :class="topChildLinkClasses(child.active)"
-                                                >
-                                                    {{ child.label }}
-                                                </Link>
+                                                <template v-for="child in link.children" :key="`top-${link.label}-${child.label}`">
+                                                    <button
+                                                        v-if="child.action === 'create-scrapboard'"
+                                                        type="button"
+                                                        class="rounded-md border border-dashed border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                                                        @click="createScrapboard"
+                                                    >
+                                                        {{ child.label }}
+                                                    </button>
+                                                    <Link
+                                                        v-else
+                                                        :href="child.href"
+                                                        :class="topChildLinkClasses(child.active)"
+                                                        :title="child.board ? 'Double-click to rename this scrapboard' : child.label"
+                                                        @dblclick.prevent.stop="child.board ? renameScrapboard(child.board) : null"
+                                                    >
+                                                        {{ child.label }}
+                                                    </Link>
+                                                </template>
                                             </div>
                                         </div>
                                     </div>
@@ -394,8 +544,8 @@ onMounted(() => {
                     class="sm:hidden"
                 >
                     <div class="space-y-4 pb-3 pt-2">
-                        <div v-for="section in navigationSections" :key="`mobile-section-${section.year}`">
-                            <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.year }}</p>
+                        <div v-for="section in navigationSections" :key="`mobile-section-${section.heading}`">
+                            <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">{{ section.heading }}</p>
                             <div v-for="link in section.links" :key="`mobile-${link.label}`" class="space-y-1">
                                 <ResponsiveNavLink
                                     :href="link.href"
@@ -404,14 +554,25 @@ onMounted(() => {
                                     {{ link.label }}
                                 </ResponsiveNavLink>
                                 <div v-if="link.children?.length" class="space-y-1">
-                                    <Link
-                                        v-for="child in link.children"
-                                        :key="`mobile-${link.label}-${child.label}`"
-                                        :href="child.href"
-                                        :class="mobileChildLinkClasses(child.active)"
-                                    >
-                                        {{ child.label }}
-                                    </Link>
+                                    <template v-for="child in link.children" :key="`mobile-${link.label}-${child.label}`">
+                                        <button
+                                            v-if="child.action === 'create-scrapboard'"
+                                            type="button"
+                                            class="block w-full rounded-md border border-dashed border-slate-300 px-6 py-2 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                            @click="createScrapboard"
+                                        >
+                                            {{ child.label }}
+                                        </button>
+                                        <Link
+                                            v-else
+                                            :href="child.href"
+                                            :class="mobileChildLinkClasses(child.active)"
+                                            :title="child.board ? 'Double-click to rename this scrapboard' : child.label"
+                                            @dblclick.prevent.stop="child.board ? renameScrapboard(child.board) : null"
+                                        >
+                                            {{ child.label }}
+                                        </Link>
+                                    </template>
                                 </div>
                             </div>
                         </div>
