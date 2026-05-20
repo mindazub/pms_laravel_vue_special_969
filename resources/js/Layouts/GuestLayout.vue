@@ -7,7 +7,7 @@ import EdisLogo from '@/Components/EdisLogo.vue';
     <div class="flex min-h-screen flex-col items-center bg-gradient-to-br from-slate-900 to-slate-700 pt-6 sm:justify-center sm:pt-0">
         <div class="mb-2">
             <Link href="/" class="inline-flex items-center">
-                <EdisLogo variant="white" height="40" />
+                <EdisLogo variant="white" height="56" />
             </Link>
         </div>
 

@@ -14,18 +14,18 @@ defineProps({
 <template>
     <img
         v-if="variant === 'white'"
-        :src="'/brand/logo-white.svg'"
+        :src="'/img/Generic_company_logo.png'"
         :height="height"
         :style="{ height: height + 'px', width: 'auto' }"
-        alt="EDIS Lab"
+        alt="Company"
         class="block"
     />
     <img
         v-else
-        :src="'/brand/logo-color.svg'"
+        :src="'/img/Generic_company_logo.png'"
         :height="height"
         :style="{ height: height + 'px', width: 'auto' }"
-        alt="EDIS Lab"
+        alt="Company"
         class="block"
     />
 </template>

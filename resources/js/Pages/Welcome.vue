@@ -60,7 +60,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
             <header class="relative z-20 border-b border-slate-200 dark:border-white/5">
                 <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
                     <a href="https://www.edislab.lt" target="_blank" rel="noopener noreferrer">
-                        <img :src="isDark ? '/brand/logo-white.svg' : '/brand/logo-color.svg'" alt="EDIS Lab" class="h-8" />
+                        <img src="/img/Generic_company_logo.png" alt="Company" class="h-8" />
                     </a>
 
                     <nav class="hidden items-center gap-8 text-sm font-medium text-slate-500 dark:text-white/60 md:flex">
@@ -218,7 +218,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                 <div class="mx-auto max-w-6xl">
                     <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
                         <div class="lg:col-span-2">
-                            <img :src="isDark ? '/brand/logo-white.svg' : '/brand/logo-color.svg'" alt="EDIS Lab" class="mb-5 h-7 opacity-70" />
+                            <img src="/img/Generic_company_logo.png" alt="Company" class="mb-5 h-7 opacity-70" />
                             <p class="text-xs text-slate-400 dark:text-white/40 leading-relaxed">
                                 K. Baršausko g. 59<br />Kaunas, Lithuania<br />
                                 <a href="mailto:info@edislab.lt" class="transition hover:text-slate-600 dark:hover:text-white/70">info@edislab.lt</a>
