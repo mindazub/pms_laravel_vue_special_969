@@ -64,9 +64,9 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                     </a>
 
                     <nav class="hidden items-center gap-8 text-sm font-medium text-slate-500 dark:text-white/60 md:flex">
-                        <a href="https://www.edislab.lt/#services" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-900 dark:hover:text-white">Services</a>
-                        <a href="https://www.edislab.lt/#about" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-900 dark:hover:text-white">About</a>
-                        <a href="https://www.edislab.lt/eu-projects" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-900 dark:hover:text-white">EU Projects</a>
+                        <Link :href="route('marketing.services')" class="transition hover:text-slate-900 dark:hover:text-white">Services</Link>
+                        <Link :href="route('marketing.about')" class="transition hover:text-slate-900 dark:hover:text-white">About</Link>
+                        <Link :href="route('marketing.eu-projects')" class="transition hover:text-slate-900 dark:hover:text-white">EU Projects</Link>
                     </nav>
 
                     <div class="flex items-center gap-3">
@@ -129,7 +129,6 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                         </Link>
                         <template v-else>
                             <Link :href="route('login')" class="inline-flex items-center gap-2 rounded-md bg-slate-900 dark:bg-white px-7 py-3 text-sm font-semibold text-white dark:text-[#0e0e0e] transition hover:bg-slate-700 dark:hover:bg-white/90">Sign In</Link>
-                            <a href="https://www.edislab.lt" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-white/20 px-7 py-3 text-sm font-semibold text-slate-700 dark:text-white transition hover:bg-slate-100 dark:hover:bg-white/10">Visit edislab.lt</a>
                         </template>
                     </div>
                 </div>
@@ -221,9 +220,9 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                             <img src="/img/Generic_company_logo.png" alt="Company" class="mb-5 h-7 opacity-70" />
                             <p class="text-xs text-slate-400 dark:text-white/40 leading-relaxed">
                                 K. Baršausko g. 59<br />Kaunas, Lithuania<br />
-                                <a href="mailto:info@edislab.lt" class="transition hover:text-slate-600 dark:hover:text-white/70">info@edislab.lt</a>
+                                <a href="mailto:info@generic.com" class="transition hover:text-slate-600 dark:hover:text-white/70">info@generic.com</a>
                             </p>
-                            <a href="https://www.linkedin.com/company/edis-lab" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 dark:border-white/10 text-slate-300 dark:text-white/35 transition hover:border-slate-400 dark:hover:border-white/30 hover:text-slate-600 dark:hover:text-white/70">
+                            <a href="#" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 dark:border-white/10 text-slate-300 dark:text-white/35 transition hover:border-slate-400 dark:hover:border-white/30 hover:text-slate-600 dark:hover:text-white/70">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V24h-4V8.5zM8.5 8.5h3.8v2.1h.05c.53-1 1.82-2.1 3.75-2.1 4 0 4.74 2.64 4.74 6.07V24h-4v-8.57c0-2.04-.04-4.67-2.85-4.67-2.85 0-3.29 2.22-3.29 4.52V24h-4V8.5z" />
                                 </svg>
@@ -232,16 +231,16 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                         <div>
                             <p class="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-300 dark:text-white/25">Company</p>
                             <ul class="space-y-2.5 text-xs text-slate-400 dark:text-white/45">
-                                <li><a href="https://www.edislab.lt/#services" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-700 dark:hover:text-white/80">Services</a></li>
-                                <li><a href="https://www.edislab.lt/#case-studies" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-700 dark:hover:text-white/80">Case Studies</a></li>
-                                <li><a href="https://www.edislab.lt/eu-projects" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-700 dark:hover:text-white/80">EU Projects</a></li>
-                                <li><a href="https://www.edislab.lt/#about" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-700 dark:hover:text-white/80">About</a></li>
+                                <li><Link :href="route('marketing.services')" class="transition hover:text-slate-700 dark:hover:text-white/80">Services</Link></li>
+                                <li><Link :href="route('marketing.services')" class="transition hover:text-slate-700 dark:hover:text-white/80">Case Studies</Link></li>
+                                <li><Link :href="route('marketing.eu-projects')" class="transition hover:text-slate-700 dark:hover:text-white/80">EU Projects</Link></li>
+                                <li><Link :href="route('marketing.about')" class="transition hover:text-slate-700 dark:hover:text-white/80">About</Link></li>
                             </ul>
                         </div>
                         <div>
                             <p class="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-300 dark:text-white/25">Legal</p>
                             <ul class="space-y-2.5 text-xs text-slate-400 dark:text-white/45">
-                                <li><a href="https://www.edislab.lt/privacy-policy" target="_blank" rel="noopener noreferrer" class="transition hover:text-slate-700 dark:hover:text-white/80">Privacy Policy</a></li>
+                                <li><a href="/privacy-policy" class="transition hover:text-slate-700 dark:hover:text-white/80">Privacy Policy</a></li>
                             </ul>
                         </div>
                     </div>

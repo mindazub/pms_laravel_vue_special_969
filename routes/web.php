@@ -77,6 +77,18 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/services', function () {
+    return Inertia::render('Services');
+})->name('marketing.services');
+
+Route::get('/about', function () {
+    return Inertia::render('About');
+})->name('marketing.about');
+
+Route::get('/eu-projects', function () {
+    return Inertia::render('EuProjects');
+})->name('marketing.eu-projects');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
