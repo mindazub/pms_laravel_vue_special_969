@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'EDIS Lab') }}</title>
+        <title inertia>{{ config('app.name', 'Generic Company') }}</title>
 
         <!-- Favicon -->
         <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">

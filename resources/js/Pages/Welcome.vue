@@ -38,7 +38,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
 </script>
 
 <template>
-    <Head title="EDIS Lab — Project Portal" />
+    <Head title="Generic Company — Project Portal" />
 
     <!-- Outer wrapper carries .dark class so Tailwind dark: variants activate -->
     <div :class="['font-sans antialiased', { dark: isDark }]">
@@ -114,7 +114,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                         &amp; Solutions
                     </h1>
                     <p class="mx-auto mt-6 max-w-2xl text-lg text-slate-500 dark:text-white/55">
-                        Manage EDIS Lab engineering projects, compliance studies and field tests — from task creation to final reporting — all in one place.
+                        Manage Generic Company engineering projects, compliance studies and field tests — from task creation to final reporting — all in one place.
                     </p>
                     <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link
@@ -199,7 +199,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                             Ready to manage your<br />energy projects?
                         </h2>
                         <p class="mt-3 text-sm text-slate-400 dark:text-white/45">
-                            Sign in to the EDIS Lab portal to track tasks, attach compliance documents and collaborate with your team.
+                            Sign in to the Generic Company portal to track tasks, attach compliance documents and collaborate with your team.
                         </p>
                     </div>
                     <div class="flex flex-col items-center gap-3 sm:flex-row">
@@ -245,7 +245,7 @@ const trusted = ["Energetikos projektai", "VICI", "proTECH", "SEL", "met.", "ELI
                         </div>
                     </div>
                     <div class="mt-12 border-t border-slate-200 dark:border-white/5 pt-6 text-center text-xs text-slate-300 dark:text-white/20">
-                        &copy; {{ new Date().getFullYear() }} EDIS LAB. All rights reserved.
+                        &copy; {{ new Date().getFullYear() }} Generic Company. All rights reserved.
                     </div>
                 </div>
             </footer>
